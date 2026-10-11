@@ -27,18 +27,56 @@ export async function saveAllKnockoutMatchesAction(
     return { error: "Toate meciurile trimise sunt incomplete." };
   }
 
-  const toInsert = validMatches.map(m => ({
-    home_team_id: m.home_team_id,
-    away_team_id: m.away_team_id,
-    stage: m.stage,
-    bracket_position: m.bracket_position,
-    status: "scheduled",
-    match_time: null,
-    sport_type: sport
-  }));
+  const positions = validMatches.map((m) => m.bracket_position);
+  const { data: existingMatches } = await supabase
+    .from("matches")
+    .select("id, bracket_position, status")
+    .eq("sport_type", sport)
+    .in("bracket_position", positions);
 
-  const { error } = await supabase.from("matches").insert(toInsert);
-  if (error) return { error: error.message };
+  const existingMap = new Map((existingMatches || []).map((m) => [m.bracket_position, m]));
+
+  const toInsert: {
+    home_team_id: string;
+    away_team_id: string;
+    stage: string;
+    bracket_position: string;
+    status: string;
+    match_time: null;
+    sport_type: string;
+  }[] = [];
+
+  for (const m of validMatches) {
+    const existing = existingMap.get(m.bracket_position);
+    if (existing) {
+      if (existing.status !== "finished") {
+        const { error: updErr } = await supabase
+          .from("matches")
+          .update({
+            home_team_id: m.home_team_id,
+            away_team_id: m.away_team_id,
+            stage: m.stage,
+          })
+          .eq("id", existing.id);
+        if (updErr) return { error: updErr.message };
+      }
+    } else {
+      toInsert.push({
+        home_team_id: m.home_team_id,
+        away_team_id: m.away_team_id,
+        stage: m.stage,
+        bracket_position: m.bracket_position,
+        status: "scheduled",
+        match_time: null,
+        sport_type: sport,
+      });
+    }
+  }
+
+  if (toInsert.length > 0) {
+    const { error: insErr } = await supabase.from("matches").insert(toInsert);
+    if (insErr) return { error: insErr.message };
+  }
 
   revalidatePath("/admin/faze-eliminatorii");
   revalidatePath("/admin/meciuri");

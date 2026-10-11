@@ -29,7 +29,8 @@ export async function createTeamAction(formData: FormData): Promise<ActionResult
   }
 
   revalidatePath("/admin/echipe");
-  revalidatePath("/clasament");
+  revalidatePath("/admin/clasament");
+  revalidatePath("/public");
   return { success: true };
 }
 
@@ -54,7 +55,8 @@ export async function updateTeamAction(formData: FormData): Promise<ActionResult
   }
 
   revalidatePath("/admin/echipe");
-  revalidatePath("/clasament");
+  revalidatePath("/admin/clasament");
+  revalidatePath("/public");
   return { success: true };
 }
 
@@ -70,6 +72,7 @@ export async function deleteTeamAction(id: string): Promise<ActionResult> {
   if (error) return { error: error.message };
 
   revalidatePath("/admin/echipe");
-  revalidatePath("/clasament");
+  revalidatePath("/admin/clasament");
+  revalidatePath("/public");
   return { success: true };
 }

@@ -1,17 +1,20 @@
 "use client";
 
-import { useActionState, Suspense } from "react";
+import { useActionState, Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { signInAction, type SignInState } from "@/lib/actions/auth";
-import { useState } from "react";
 
 const initialState: SignInState = { error: null };
 
 function LoginForm() {
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirectTo") || "/admin";
   const [state, formAction, isPending] = useActionState(signInAction, initialState);
   const [showPass, setShowPass] = useState(false);
 
   return (
     <form action={formAction} className="space-y-5" noValidate>
+      <input type="hidden" name="redirectTo" value={redirectTo} />
       {/* Email */}
       <div>
         <label htmlFor="email" className="block text-sm font-semibold text-green-800 mb-1.5">

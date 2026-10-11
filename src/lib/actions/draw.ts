@@ -52,6 +52,8 @@ export async function drawGroupsAction(): Promise<ActionResult> {
 
   revalidatePath("/admin/tragere-la-sorti");
   revalidatePath("/admin/echipe");
+  revalidatePath("/admin/clasament");
+  revalidatePath("/public");
   return { success: true };
 }
 
@@ -63,10 +65,36 @@ export async function drawMatchesAction(): Promise<ActionResult> {
   const supabase = getAdminClient();
   const sport = await getCurrentSport();
 
-  // 1. Ștergem meciurile vechi din faza de grupe
+  // 1. Resetăm statisticile echipelor pentru sportul curent la regenearea meciurilor
+  await supabase
+    .from("teams")
+    .update({
+      points: 0,
+      played: 0,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      goals_scored: 0,
+      goals_conceded: 0,
+    })
+    .eq("sport_type", sport);
+
+  // 2. Fetch meciurile vechi din faza de grupe pentru a șterge și evenimentele asociate
+  const { data: oldMatches } = await supabase
+    .from("matches")
+    .select("id")
+    .eq("stage", "group")
+    .eq("sport_type", sport);
+
+  if (oldMatches && oldMatches.length > 0) {
+    const oldIds = oldMatches.map((m) => m.id);
+    await supabase.from("match_events").delete().in("match_id", oldIds);
+  }
+
+  // 3. Ștergem meciurile vechi din faza de grupe
   await supabase.from("matches").delete().eq("stage", "group").eq("sport_type", sport);
 
-  // 2. Fetch echipe cu grupele lor
+  // 4. Fetch echipe cu grupele lor
   const { data: teams, error: fetchErr } = await supabase.from("teams").select("id, group_name").eq("sport_type", sport);
   if (fetchErr) return { error: fetchErr.message };
 
@@ -86,6 +114,7 @@ export async function drawMatchesAction(): Promise<ActionResult> {
     away_team_id: string;
     stage: string;
     status: string;
+    round: number;
     match_time: null;
     sport_type: string;
   }[] = [];
@@ -111,6 +140,7 @@ export async function drawMatchesAction(): Promise<ActionResult> {
             away_team_id: arr[j],
             stage: "group",
             status: "scheduled",
+            round: ((i + j) % (n - 1 || 1)) + 1,
             match_time: null,
             sport_type: sport,
           });
@@ -125,6 +155,7 @@ export async function drawMatchesAction(): Promise<ActionResult> {
           away_team_id: arr[(i + 1) % n],
           stage: "group",
           status: "scheduled",
+          round: 1,
           match_time: null,
           sport_type: sport,
         });
@@ -135,6 +166,7 @@ export async function drawMatchesAction(): Promise<ActionResult> {
           away_team_id: arr[(i + 2) % n],
           stage: "group",
           status: "scheduled",
+          round: 2,
           match_time: null,
           sport_type: sport,
         });
@@ -148,5 +180,7 @@ export async function drawMatchesAction(): Promise<ActionResult> {
   revalidatePath("/admin/tragere-la-sorti");
   revalidatePath("/admin/meciuri");
   revalidatePath("/admin/program");
+  revalidatePath("/admin/clasament");
+  revalidatePath("/public");
   return { success: true };
 }

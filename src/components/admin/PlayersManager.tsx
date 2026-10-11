@@ -445,7 +445,7 @@ export default function PlayersManager({ players, teams }: PlayersManagerProps) 
           <div className="space-y-4">
             <div className="p-4 rounded-xl bg-red-50 border border-red-200">
               <p className="text-red-800 text-sm font-medium">
-                Ștergi jucătorul <strong>"{selected.name}"</strong> (#{ selected.jersey_number}) din <strong>{selected.teams?.name}</strong>?
+                Ștergi jucătorul <strong>&quot;{selected.name}&quot;</strong> (#{ selected.jersey_number}) din <strong>{selected.teams?.name}</strong>?
               </p>
             </div>
             {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}

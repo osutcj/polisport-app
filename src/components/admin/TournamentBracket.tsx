@@ -10,6 +10,7 @@ type MatchInfo = {
   home_score: number | null;
   away_score: number | null;
   penalty_winner_id: string | null;
+  forfeit_loser_id?: string | null;
   status: string;
   stage: string;
   round: number;
@@ -18,48 +19,53 @@ type MatchInfo = {
   away_team: TeamInfo;
 };
 
-export default function TournamentBracket({ matches, sport }: { matches: MatchInfo[], sport?: "football" | "basketball" }) {
-  const byBracket = (pos: string) => matches.find(m => m.bracket_position === pos) || undefined;
-
-  const MatchBox = ({ match, label }: { match: MatchInfo | undefined; label: string }) => {
-    if (!match) {
-      return (
-        <div className="w-48 sm:w-56 bg-white border border-dashed border-gray-300 rounded-xl p-3 shadow-sm flex flex-col justify-center h-[72px] shrink-0">
-          <span className="text-xs text-center font-semibold text-gray-400">{label}</span>
-        </div>
-      );
-    }
-
-    const homeWin = match.status === "finished" && (
-      (match.home_score ?? 0) > (match.away_score ?? 0) || match.penalty_winner_id === match.home_team_id
-    );
-    const awayWin = match.status === "finished" && (
-      (match.away_score ?? 0) > (match.home_score ?? 0) || match.penalty_winner_id === match.away_team_id
-    );
-
+function MatchBox({ match, label }: { match: MatchInfo | undefined; label: string }) {
+  if (!match) {
     return (
-      <div className="w-48 sm:w-56 bg-white border border-green-200 rounded-xl shadow-md overflow-hidden flex flex-col relative h-[72px] shrink-0 transition-transform hover:scale-105">
-        <div className={`flex justify-between items-center px-3 py-1.5 flex-1 border-b border-gray-100 ${homeWin ? 'bg-green-50' : ''}`}>
-          <span className={`text-xs sm:text-sm font-bold truncate pr-2 ${homeWin ? 'text-green-900' : 'text-gray-700'}`}>
-            {match.home_team?.name || "TBD"}
-          </span>
-          <span className="font-black text-sm text-green-700">
-            {match.home_score !== null ? match.home_score : "-"}
-            {match.penalty_winner_id === match.home_team_id && <span className="text-[10px] text-green-500 ml-1">(p)</span>}
-          </span>
-        </div>
-        <div className={`flex justify-between items-center px-3 py-1.5 flex-1 ${awayWin ? 'bg-green-50' : ''}`}>
-          <span className={`text-xs sm:text-sm font-bold truncate pr-2 ${awayWin ? 'text-green-900' : 'text-gray-700'}`}>
-            {match.away_team?.name || "TBD"}
-          </span>
-          <span className="font-black text-sm text-green-700">
-            {match.away_score !== null ? match.away_score : "-"}
-            {match.penalty_winner_id === match.away_team_id && <span className="text-[10px] text-green-500 ml-1">(p)</span>}
-          </span>
-        </div>
+      <div className="w-48 sm:w-56 bg-white border border-dashed border-gray-300 rounded-xl p-3 shadow-sm flex flex-col justify-center h-[72px] shrink-0">
+        <span className="text-xs text-center font-semibold text-gray-400">{label}</span>
       </div>
     );
-  };
+  }
+
+  const isForfeit = !!match.forfeit_loser_id;
+  const homeWin = match.status === "finished" && (
+    (match.forfeit_loser_id && match.forfeit_loser_id === match.away_team_id) ||
+    (!match.forfeit_loser_id && ((match.home_score ?? 0) > (match.away_score ?? 0) || match.penalty_winner_id === match.home_team_id))
+  );
+  const awayWin = match.status === "finished" && (
+    (match.forfeit_loser_id && match.forfeit_loser_id === match.home_team_id) ||
+    (!match.forfeit_loser_id && ((match.away_score ?? 0) > (match.home_score ?? 0) || match.penalty_winner_id === match.away_team_id))
+  );
+
+  return (
+    <div className="w-48 sm:w-56 bg-white border border-green-200 rounded-xl shadow-md overflow-hidden flex flex-col relative h-[72px] shrink-0 transition-transform hover:scale-105">
+      <div className={`flex justify-between items-center px-3 py-1.5 flex-1 border-b border-gray-100 ${homeWin ? 'bg-green-50' : ''}`}>
+        <span className={`text-xs sm:text-sm font-bold truncate pr-2 ${homeWin ? 'text-green-900' : 'text-gray-700'}`}>
+          {match.home_team?.name || "TBD"}
+        </span>
+        <span className="font-black text-sm text-green-700 flex items-center gap-1">
+          {match.home_score !== null ? match.home_score : "-"}
+          {match.penalty_winner_id === match.home_team_id && <span className="text-[10px] text-green-500">(p)</span>}
+          {isForfeit && match.forfeit_loser_id === match.away_team_id && <span className="text-[9px] text-red-500 font-bold">(mv)</span>}
+        </span>
+      </div>
+      <div className={`flex justify-between items-center px-3 py-1.5 flex-1 ${awayWin ? 'bg-green-50' : ''}`}>
+        <span className={`text-xs sm:text-sm font-bold truncate pr-2 ${awayWin ? 'text-green-900' : 'text-gray-700'}`}>
+          {match.away_team?.name || "TBD"}
+        </span>
+        <span className="font-black text-sm text-green-700 flex items-center gap-1">
+          {match.away_score !== null ? match.away_score : "-"}
+          {match.penalty_winner_id === match.away_team_id && <span className="text-[10px] text-green-500">(p)</span>}
+          {isForfeit && match.forfeit_loser_id === match.home_team_id && <span className="text-[9px] text-red-500 font-bold">(mv)</span>}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+export default function TournamentBracket({ matches, sport }: { matches: MatchInfo[], sport?: "football" | "basketball" }) {
+  const byBracket = (pos: string) => matches.find(m => m.bracket_position === pos) || undefined;
 
   return (
     <div className="w-full overflow-x-auto pb-8 pt-4">

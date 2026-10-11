@@ -39,7 +39,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ro" className={inter.variable}>
-      <body className="antialiased flex flex-col min-h-screen bg-green-50">
+      <body className="antialiased flex flex-col min-h-screen bg-green-50" suppressHydrationWarning>
         <Navbar />
         <main className="flex-1">
           {children}

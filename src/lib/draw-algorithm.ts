@@ -55,7 +55,7 @@ export function generateGroupDraw(teams: DrawTeam[]): DrawRound[] {
   const hasOdd = shuffled.length % 2 !== 0;
   type Slot = DrawTeam | null;
   const workingTeams: Slot[] = hasOdd ? [...shuffled, null] : [...shuffled];
-  const n = workingTeams.length; // garantat par
+  const _n = workingTeams.length; // garantat par
 
   // Round-Robin Rotation:
   // - workingTeams[0] este FIXAT

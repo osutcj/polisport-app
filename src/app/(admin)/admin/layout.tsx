@@ -25,24 +25,11 @@ export default async function AdminLayout({
   const sport = (sportCookie === "basketball" ? "basketball" : "football") as SportType;
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar Desktop */}
-      <div className="hidden lg:flex">
-        <AdminSidebar sport={sport} />
-      </div>
+    <div className="flex min-h-screen bg-gray-50 flex-col lg:flex-row">
+      <AdminSidebar sport={sport} userEmail={user.email} />
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar mobile */}
-        <div className="lg:hidden flex items-center justify-between px-4 py-3 bg-green-900 text-white">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-green-500 flex items-center justify-center font-black text-sm">P</div>
-            <span className="font-bold text-sm">PoliSport Admin</span>
-          </div>
-          <span className="text-green-400 text-xs">{user.email}</span>
-        </div>
-
-        {/* Admin content area */}
         <main className="flex-1 overflow-auto">
           {children}
         </main>

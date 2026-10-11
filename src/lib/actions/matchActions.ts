@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getCurrentSport } from "@/lib/sport";
 
-type ActionResult = { success: true } | { error: string };
+type ActionResult = { success: true; eventId?: string } | { error: string };
 
 function getAdminClient() {
   return createAdminClient();
@@ -40,7 +40,7 @@ export async function addGoalAction(formData: FormData): Promise<ActionResult> {
   }
 
   // Inserăm evenimentul
-  const { error: eventErr } = await supabase
+  const { data: insertedEvent, error: eventErr } = await supabase
     .from("match_events")
     .insert({
       match_id,
@@ -64,8 +64,8 @@ export async function addGoalAction(formData: FormData): Promise<ActionResult> {
 
   revalidatePath("/admin/meciuri");
   revalidatePath("/admin/program");
-  revalidatePath("/public");
-  return { success: true };
+  const eventId = Array.isArray(insertedEvent) ? (insertedEvent[0] as any)?.id : (insertedEvent as any)?.id;
+  return { success: true, eventId };
 }
 
 // ─── Șterge un gol din match_events ─────────────────────────────────────────
@@ -177,8 +177,9 @@ export async function finalizeMatchAction(matchId: string, penaltyWinnerId?: str
   }
 
   revalidatePath("/admin/meciuri");
-  revalidatePath("/clasament");
-  revalidatePath("/meciuri");
+  revalidatePath("/admin/program");
+  revalidatePath("/admin/clasament");
+  revalidatePath("/public");
 
   return { success: true };
 }
@@ -235,7 +236,9 @@ export async function reopenMatchAction(matchId: string): Promise<ActionResult> 
   }
 
   revalidatePath("/admin/meciuri");
-  revalidatePath("/clasament");
+  revalidatePath("/admin/program");
+  revalidatePath("/admin/clasament");
+  revalidatePath("/public");
 
   return { success: true };
 }
@@ -274,7 +277,7 @@ async function applyTeamStats(supabase: any, homeId: string, awayId: string, hom
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function revertTeamStats(supabase: any, homeId: string, awayId: string, homeScore: number, awayScore: number): Promise<string | null> {
+export async function revertTeamStats(supabase: any, homeId: string, awayId: string, homeScore: number, awayScore: number): Promise<string | null> {
   let homePts = 0, awayPts = 0;
   if (homeScore > awayScore)      { homePts = 3; awayPts = 0; }
   else if (homeScore < awayScore) { homePts = 0; awayPts = 3; }
@@ -308,6 +311,23 @@ async function revertTeamStats(supabase: any, homeId: string, awayId: string, ho
 export async function rescheduleMatchAction(matchId: string): Promise<ActionResult> {
   const supabase = getAdminClient();
 
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id, home_team_id, away_team_id, status, home_score, away_score, stage")
+    .eq("id", matchId)
+    .single();
+
+  if (match && match.stage === "group" && match.status === "finished" && match.home_score !== null && match.away_score !== null) {
+    const revertErr = await revertTeamStats(
+      supabase,
+      match.home_team_id,
+      match.away_team_id,
+      match.home_score as number,
+      match.away_score as number
+    );
+    if (revertErr) return { error: revertErr };
+  }
+
   const { error: eventsErr } = await supabase
     .from("match_events")
     .delete()
@@ -331,6 +351,7 @@ export async function rescheduleMatchAction(matchId: string): Promise<ActionResu
 
   revalidatePath("/admin/meciuri");
   revalidatePath("/admin/program");
+  revalidatePath("/admin/clasament");
   revalidatePath("/public");
   return { success: true };
 }

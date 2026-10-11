@@ -17,16 +17,24 @@ export async function POST(req: NextRequest) {
 
     const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
     const baseDir = isServerless ? path.join("/tmp", "uploads") : path.join(process.cwd(), "public", "uploads");
+    const resolvedBase = path.resolve(baseDir);
 
-    const targetDir = path.join(baseDir, path.dirname(filePath));
+    // Sanitize path against directory traversal
+    const normalizedFilePath = path.normalize(filePath).replace(/^(\.\.[\/\\])+/, "");
+    const fullPath = path.resolve(resolvedBase, normalizedFilePath);
+
+    if (!fullPath.startsWith(resolvedBase + path.sep)) {
+      return NextResponse.json({ error: "Cale invalidă." }, { status: 403 });
+    }
+
+    const targetDir = path.dirname(fullPath);
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    const fullPath = path.join(baseDir, filePath);
     fs.writeFileSync(fullPath, buffer);
 
-    return NextResponse.json({ success: true, filePath });
+    return NextResponse.json({ success: true, filePath: normalizedFilePath });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json({ error: msg }, { status: 500 });

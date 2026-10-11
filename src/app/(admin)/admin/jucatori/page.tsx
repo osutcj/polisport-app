@@ -1,20 +1,25 @@
 import { createPublicClient } from "@/lib/supabase/public";
+import { getCurrentSport } from "@/lib/sport";
 import PlayersManager from "@/components/admin/PlayersManager";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Admin — Jucători" };
+export const dynamic = "force-dynamic";
 
 export default async function AdminJucatoriPage() {
+  const sport = await getCurrentSport();
   const supabase = createPublicClient();
 
   const [playersRes, teamsRes] = await Promise.all([
     supabase
       .from("players")
-      .select("id, name, jersey_number, role, id_card_url, goals_scored, goals_conceded, team_id, teams(name)")
-      .order("teams(name)", { ascending: true }),
+      .select("id, name, jersey_number, role, id_card_url, goals_scored, goals_conceded, team_id, teams!inner(name, sport_type)")
+      .eq("teams.sport_type", sport)
+      .order("jersey_number", { ascending: true }),
     supabase
       .from("teams")
       .select("id, name")
+      .eq("sport_type", sport)
       .order("name"),
   ]);
 

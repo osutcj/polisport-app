@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createPublicClient } from "@/lib/supabase/public";
-import { getCurrentSport, SPORT_LABELS, SPORT_ICONS } from "@/lib/sport";
+import { getCurrentSport } from "@/lib/sport";
 import ProgramManager from "@/components/admin/ProgramManager";
 
 export const metadata: Metadata = { title: "Admin — Program & Rezultate" };

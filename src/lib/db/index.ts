@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
 
 let dbInstance: Database.Database | null = null;
 
@@ -149,22 +150,24 @@ function initSchema(db: Database.Database) {
       WHERE id = NEW.away_team_id;
     END;
 
-    CREATE TRIGGER IF NOT EXISTS trg_update_player_stats
+    DROP TRIGGER IF EXISTS trg_update_player_stats;
+    CREATE TRIGGER trg_update_player_stats
     AFTER INSERT ON match_events
     FOR EACH ROW
     BEGIN
-      UPDATE players SET goals_scored = goals_scored + 1
+      UPDATE players SET goals_scored = goals_scored + COALESCE(NEW.points_value, 1)
       WHERE id = NEW.player_id AND NEW.event_type = 'goal_scored';
 
       UPDATE players SET goals_conceded = goals_conceded + 1
       WHERE id = NEW.player_id AND NEW.event_type = 'goal_conceded';
     END;
 
-    CREATE TRIGGER IF NOT EXISTS trg_revert_player_stats
+    DROP TRIGGER IF EXISTS trg_revert_player_stats;
+    CREATE TRIGGER trg_revert_player_stats
     AFTER DELETE ON match_events
     FOR EACH ROW
     BEGIN
-      UPDATE players SET goals_scored = MAX(0, goals_scored - 1)
+      UPDATE players SET goals_scored = MAX(0, goals_scored - COALESCE(OLD.points_value, 1))
       WHERE id = OLD.player_id AND OLD.event_type = 'goal_scored';
 
       UPDATE players SET goals_conceded = MAX(0, goals_conceded - 1)

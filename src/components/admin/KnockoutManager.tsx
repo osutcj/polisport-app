@@ -28,6 +28,113 @@ interface MatchSlot {
   away_team_id: string;
 }
 
+function MatchCard({
+  label,
+  slot,
+  onHome,
+  onAway,
+  options,
+  existingMatch,
+}: {
+  label: string;
+  slot: MatchSlot;
+  onHome: (v: string) => void;
+  onAway: (v: string) => void;
+  options: { id: string; name: string }[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  existingMatch?: any;
+}) {
+  if (existingMatch) {
+    const isForfeit = !!existingMatch.forfeit_loser_id;
+    const homeWin =
+      existingMatch.status === "finished" &&
+      ((isForfeit && existingMatch.forfeit_loser_id === existingMatch.away_team_id) ||
+        (!isForfeit && ((existingMatch.home_score ?? 0) > (existingMatch.away_score ?? 0) ||
+          existingMatch.penalty_winner_id === existingMatch.home_team_id)));
+    const awayWin =
+      existingMatch.status === "finished" &&
+      ((isForfeit && existingMatch.forfeit_loser_id === existingMatch.home_team_id) ||
+        (!isForfeit && ((existingMatch.away_score ?? 0) > (existingMatch.home_score ?? 0) ||
+          existingMatch.penalty_winner_id === existingMatch.away_team_id)));
+
+    return (
+      <div className="w-56 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        <div className="text-[10px] text-center font-bold text-gray-400 uppercase tracking-wider bg-gray-50 py-1 border-b border-gray-100">
+          {label}
+        </div>
+        <div className={`flex justify-between items-center px-3 py-2 border-b border-gray-50 ${homeWin ? "bg-green-50" : ""}`}>
+          <span className={`text-xs font-bold truncate ${homeWin ? "text-green-800" : "text-gray-700"}`}>
+            {existingMatch.home_team?.name || "?"}
+          </span>
+          <span className="font-black text-sm text-gray-800 flex items-center gap-1">
+            {existingMatch.home_score !== null ? existingMatch.home_score : "-"}
+            {isForfeit && existingMatch.forfeit_loser_id === existingMatch.away_team_id && (
+              <span className="text-[9px] text-red-500 font-bold">(mv)</span>
+            )}
+          </span>
+        </div>
+        <div className={`flex justify-between items-center px-3 py-2 ${awayWin ? "bg-green-50" : ""}`}>
+          <span className={`text-xs font-bold truncate ${awayWin ? "text-green-800" : "text-gray-700"}`}>
+            {existingMatch.away_team?.name || "?"}
+          </span>
+          <span className="font-black text-sm text-gray-800 flex items-center gap-1">
+            {existingMatch.away_score !== null ? existingMatch.away_score : "-"}
+            {isForfeit && existingMatch.forfeit_loser_id === existingMatch.home_team_id && (
+              <span className="text-[9px] text-red-500 font-bold">(mv)</span>
+            )}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-56 bg-white border border-blue-200 rounded-xl shadow-sm overflow-hidden">
+      <div className="text-[10px] text-center font-bold text-blue-500 uppercase tracking-wider bg-blue-50 py-1 border-b border-blue-100">
+        {label}
+      </div>
+      <div className="p-2 border-b border-gray-50">
+        <select
+          className="w-full text-xs p-1.5 rounded border border-gray-200 focus:ring-2 focus:ring-blue-400"
+          value={slot.home_team_id}
+          onChange={(e) => onHome(e.target.value)}
+          disabled={options.length === 0}
+        >
+          <option value="">Echipa 1...</option>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>{o.name}</option>
+          ))}
+        </select>
+      </div>
+      <div className="p-2">
+        <select
+          className="w-full text-xs p-1.5 rounded border border-gray-200 focus:ring-2 focus:ring-blue-400"
+          value={slot.away_team_id}
+          onChange={(e) => onAway(e.target.value)}
+          disabled={options.length === 0}
+        >
+          <option value="">Echipa 2...</option>
+          {options.map((o) => (
+            <option key={o.id} value={o.id}>{o.name}</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+}
+
+// Render a stage column
+function StageColumn({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`flex flex-col items-center ${className}`}>
+      <h3 className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4">{title}</h3>
+      <div className="flex flex-col justify-around gap-4 flex-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function KnockoutManager({ topTeams, allTeams, existingMatches, sport }: any) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -109,104 +216,6 @@ export default function KnockoutManager({ topTeams, allTeams, existingMatches, s
     const copy = [...arr];
     copy[index] = { ...copy[index], [field]: value };
     setArr(copy);
-  }
-
-  // Render a single match card with dropdowns
-  function MatchCard({
-    label,
-    slot,
-    onHome,
-    onAway,
-    options,
-    existingMatch,
-  }: {
-    label: string;
-    slot: MatchSlot;
-    onHome: (v: string) => void;
-    onAway: (v: string) => void;
-    options: { id: string; name: string }[];
-    existingMatch?: any;
-  }) {
-    if (existingMatch) {
-      const homeWin =
-        existingMatch.status === "finished" &&
-        ((existingMatch.home_score ?? 0) > (existingMatch.away_score ?? 0) ||
-          existingMatch.penalty_winner_id === existingMatch.home_team_id);
-      const awayWin =
-        existingMatch.status === "finished" &&
-        ((existingMatch.away_score ?? 0) > (existingMatch.home_score ?? 0) ||
-          existingMatch.penalty_winner_id === existingMatch.away_team_id);
-
-      return (
-        <div className="w-56 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="text-[10px] text-center font-bold text-gray-400 uppercase tracking-wider bg-gray-50 py-1 border-b border-gray-100">
-            {label}
-          </div>
-          <div className={`flex justify-between items-center px-3 py-2 border-b border-gray-50 ${homeWin ? "bg-green-50" : ""}`}>
-            <span className={`text-xs font-bold truncate ${homeWin ? "text-green-800" : "text-gray-700"}`}>
-              {existingMatch.home_team?.name || "?"}
-            </span>
-            <span className="font-black text-sm text-gray-800">
-              {existingMatch.home_score !== null ? existingMatch.home_score : "-"}
-            </span>
-          </div>
-          <div className={`flex justify-between items-center px-3 py-2 ${awayWin ? "bg-green-50" : ""}`}>
-            <span className={`text-xs font-bold truncate ${awayWin ? "text-green-800" : "text-gray-700"}`}>
-              {existingMatch.away_team?.name || "?"}
-            </span>
-            <span className="font-black text-sm text-gray-800">
-              {existingMatch.away_score !== null ? existingMatch.away_score : "-"}
-            </span>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="w-56 bg-white border border-blue-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="text-[10px] text-center font-bold text-blue-500 uppercase tracking-wider bg-blue-50 py-1 border-b border-blue-100">
-          {label}
-        </div>
-        <div className="p-2 border-b border-gray-50">
-          <select
-            className="w-full text-xs p-1.5 rounded border border-gray-200 focus:ring-2 focus:ring-blue-400"
-            value={slot.home_team_id}
-            onChange={(e) => onHome(e.target.value)}
-            disabled={options.length === 0}
-          >
-            <option value="">Echipa 1...</option>
-            {options.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="p-2">
-          <select
-            className="w-full text-xs p-1.5 rounded border border-gray-200 focus:ring-2 focus:ring-blue-400"
-            value={slot.away_team_id}
-            onChange={(e) => onAway(e.target.value)}
-            disabled={options.length === 0}
-          >
-            <option value="">Echipa 2...</option>
-            {options.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-    );
-  }
-
-  // Render a stage column
-  function StageColumn({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
-    return (
-      <div className={`flex flex-col items-center ${className}`}>
-        <h3 className="text-xs font-black text-gray-500 uppercase tracking-wider mb-4">{title}</h3>
-        <div className="flex flex-col justify-around gap-4 flex-1">
-          {children}
-        </div>
-      </div>
-    );
   }
 
   return (

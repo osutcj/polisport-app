@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import { revertTeamStats } from "@/lib/actions/matchActions";
 
 type ActionResult = { success: true } | { error: string };
 
@@ -38,6 +39,23 @@ export async function deleteMatchAction(id: string): Promise<ActionResult> {
   const supabase = getAdminClient();
   if (!id) return { error: "ID meci lipsă." };
 
+  const { data: match } = await supabase
+    .from("matches")
+    .select("id, home_team_id, away_team_id, status, home_score, away_score, stage")
+    .eq("id", id)
+    .single();
+
+  if (match && match.stage === "group" && match.status === "finished" && match.home_score !== null && match.away_score !== null) {
+    const revertErr = await revertTeamStats(
+      supabase,
+      match.home_team_id,
+      match.away_team_id,
+      match.home_score as number,
+      match.away_score as number
+    );
+    if (revertErr) return { error: revertErr };
+  }
+
   // First delete match events if any (though usually cascading is on, good practice)
   await supabase.from("match_events").delete().eq("match_id", id);
   
@@ -46,6 +64,7 @@ export async function deleteMatchAction(id: string): Promise<ActionResult> {
 
   revalidatePath("/admin/meciuri");
   revalidatePath("/admin/program");
+  revalidatePath("/admin/clasament");
   revalidatePath("/admin/faze-eliminatorii");
   revalidatePath("/public");
 

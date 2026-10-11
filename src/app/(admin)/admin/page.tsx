@@ -1,6 +1,7 @@
 import { createPublicClient } from "@/lib/supabase/public";
 import { getCurrentSport, SPORT_LABELS, SPORT_ICONS } from "@/lib/sport";
 import type { Metadata } from "next";
+import Link from "next/link";
 import ResetTournamentButton from "@/components/admin/ResetTournamentButton";
 
 export const metadata: Metadata = { title: "Dashboard Admin" };
@@ -116,9 +117,9 @@ export default async function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-bold text-gray-900">🛡️ Echipe recente</h2>
-            <a href="/admin/echipe" className="text-green-600 hover:text-green-700 text-sm font-semibold">
+            <Link href="/admin/echipe" className="text-green-600 hover:text-green-700 text-sm font-semibold">
               Vezi toate →
-            </a>
+            </Link>
           </div>
           {recentTeams && recentTeams.length > 0 ? (
             <ul className="divide-y divide-gray-50">
@@ -142,9 +143,9 @@ export default async function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-bold text-gray-900">👤 Jucători recenți</h2>
-            <a href="/admin/jucatori" className="text-green-600 hover:text-green-700 text-sm font-semibold">
+            <Link href="/admin/jucatori" className="text-green-600 hover:text-green-700 text-sm font-semibold">
               Vezi toți →
-            </a>
+            </Link>
           </div>
           {recentPlayers && recentPlayers.length > 0 ? (
             <ul className="divide-y divide-gray-50">

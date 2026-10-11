@@ -47,8 +47,14 @@ export async function signInAction(
 
   console.log("[signInAction] ✅ Login reușit pentru:", data.user?.email);
 
+  const rawRedirect = formData.get("redirectTo") as string | null;
+  const safeRedirect =
+    rawRedirect && rawRedirect.startsWith("/") && !rawRedirect.startsWith("//")
+      ? rawRedirect
+      : "/admin";
+
   // Redirect server-side — cookie-ul de sesiune este deja setat
-  redirect("/admin");
+  redirect(safeRedirect);
 }
 
 /**

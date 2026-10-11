@@ -47,7 +47,8 @@ export async function saveGeneratedMatches(pairs: DrawPair[]): Promise<ActionRes
   // Revalidăm rutele publice și de admin
   revalidatePath("/admin/tragere-la-sorti");
   revalidatePath("/admin/meciuri");
-  revalidatePath("/meciuri");
+  revalidatePath("/admin/program");
+  revalidatePath("/public");
   
   return { success: true };
 }

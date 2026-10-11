@@ -40,7 +40,7 @@ export default function TragereLaSortiPublicPage() {
         </div>
 
         <Link
-          href="/meciuri"
+          href="/public"
           className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all hover:-translate-y-0.5"
         >
           ⚽ Vezi meciurile programate

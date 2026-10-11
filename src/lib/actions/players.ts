@@ -38,6 +38,9 @@ export async function createPlayerAction(formData: FormData): Promise<ActionResu
   }
 
   revalidatePath("/admin/echipe");
+  revalidatePath("/admin/jucatori");
+  revalidatePath("/admin/program");
+  revalidatePath("/public");
   return { success: true };
 }
 
@@ -75,6 +78,9 @@ export async function updatePlayerAction(formData: FormData): Promise<ActionResu
   }
 
   revalidatePath("/admin/echipe");
+  revalidatePath("/admin/jucatori");
+  revalidatePath("/admin/program");
+  revalidatePath("/public");
   return { success: true };
 }
 
@@ -90,5 +96,8 @@ export async function deletePlayerAction(id: string): Promise<ActionResult> {
   if (error) return { error: error.message };
 
   revalidatePath("/admin/echipe");
+  revalidatePath("/admin/jucatori");
+  revalidatePath("/admin/program");
+  revalidatePath("/public");
   return { success: true };
 }

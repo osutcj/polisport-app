@@ -42,6 +42,13 @@ interface Match {
   match_events: GoalEvent[];
 }
 
+function safeUUID(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "evt-" + Date.now().toString(36) + "-" + Math.random().toString(36).substring(2, 9);
+}
+
 // ─── Modal ───────────────────────────────────────────────────────────────────
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
@@ -146,10 +153,11 @@ export default function ProgramManager({
       if ("error" in result) { setError(result.error); return; }
       
       const pval = fd.get("points_value") ? parseInt(fd.get("points_value") as string) : (fd.get("event_type") === "goal_scored" ? 1 : 0);
-      
+      const eventId = ("eventId" in result && result.eventId) ? result.eventId : safeUUID();
+
       // Actualizăm local pentru a vedea evenimentul imediat fără refresh
       const newEvent: GoalEvent = {
-        id: crypto.randomUUID(),
+        id: eventId,
         player_id: selectedPlayer.id,
         team_id: selectedPlayer.team_id,
         event_type: fd.get("event_type") as string || "goal_scored",
@@ -222,7 +230,7 @@ export default function ProgramManager({
     let dateKey = "Fără Dată";
     if (match.match_time) {
       const d = new Date(match.match_time);
-      dateKey = d.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long' });
+      dateKey = d.toLocaleDateString('ro-RO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Bucharest' });
       // capitalize first letter
       dateKey = dateKey.charAt(0).toUpperCase() + dateKey.slice(1);
     }
@@ -298,7 +306,7 @@ export default function ProgramManager({
           Object.entries(groupedMatches).map(([dateLabel, dayMatches]) => (
             <div key={dateLabel} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
               <div className="bg-gradient-to-r from-gray-50 to-gray-100 px-5 py-3 border-b border-gray-200">
-                <h3 className="font-bold text-gray-800 text-lg">📅 {dateLabel}</h3>
+                <h3 className="font-bold text-gray-800 text-lg" suppressHydrationWarning>📅 {dateLabel}</h3>
               </div>
               <ul className="divide-y divide-gray-50">
                 {dayMatches.map((match) => {
@@ -316,7 +324,7 @@ export default function ProgramManager({
                   const awayYellows = match.match_events.filter(e => e.team_id === match.away_team_id && e.event_type === "yellow_card").length;
                   const awayReds = match.match_events.filter(e => e.team_id === match.away_team_id && e.event_type === "red_card").length;
 
-                  const matchHour = match.match_time ? new Date(match.match_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }) : 'N/A';
+                  const matchHour = match.match_time ? new Date(match.match_time).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bucharest' }) : 'N/A';
                   
                   const stageLabels: Record<string, string> = { group: "Grupe", ro16: "Optimi", quarter: "Sferturi", semi: "Semifinale", final: "Finala", third_place: "Finala Mică" };
                   const groupName = match.home_team.group_name || match.away_team?.group_name;
@@ -330,7 +338,7 @@ export default function ProgramManager({
                     <li key={match.id} className="p-4 hover:bg-gray-50/50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       {/* Ora & Etapa */}
                       <div className="flex flex-col min-w-[110px]">
-                        <span className="text-lg font-black text-gray-900">{matchHour}</span>
+                        <span className="text-lg font-black text-gray-900" suppressHydrationWarning>{matchHour}</span>
                         {match.stage === "group" ? (
                           <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-black border w-fit shadow-2xs ${groupColor}`}>
                             <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />

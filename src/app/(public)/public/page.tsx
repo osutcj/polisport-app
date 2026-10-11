@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import TournamentBracket from "@/components/admin/TournamentBracket";
 import type { SportType } from "@/lib/sport";
@@ -29,7 +30,7 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
   const { data: matches } = await supabase
     .from("matches")
     .select(`
-      id, home_team_id, away_team_id, home_score, away_score, status, stage, match_time, penalty_winner_id, bracket_position,
+      id, home_team_id, away_team_id, home_score, away_score, status, stage, match_time, penalty_winner_id, forfeit_loser_id, bracket_position,
       home_team:teams!matches_home_team_id_fkey(name, group_name),
       away_team:teams!matches_away_team_id_fkey(name, group_name),
       match_events(team_id, event_type)
@@ -79,9 +80,33 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
       <header className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white py-12 px-6 shadow-lg mb-12">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl md:text-5xl font-black mb-4">{SPORT_ICONS[sport]} Polisport Tournament - {SPORT_LABELS[sport]}</h1>
-          <p className="text-blue-200 text-lg">Portal public de rezultate și clasamente</p>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-4xl md:text-5xl font-black mb-2">{SPORT_ICONS[sport]} Polisport Tournament - {SPORT_LABELS[sport]}</h1>
+            <p className="text-blue-200 text-lg">Portal public de rezultate și clasamente</p>
+          </div>
+          <div className="flex items-center gap-2 bg-blue-950/60 p-1.5 rounded-2xl border border-blue-800/60 w-fit">
+            <Link
+              href="/public?sport=football"
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                sport === "football"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-blue-200 hover:text-white hover:bg-blue-800/40"
+              }`}
+            >
+              ⚽ Fotbal
+            </Link>
+            <Link
+              href="/public?sport=basketball"
+              className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                sport === "basketball"
+                  ? "bg-amber-600 text-white shadow-sm"
+                  : "text-blue-200 hover:text-white hover:bg-blue-800/40"
+              }`}
+            >
+              🏀 Baschet
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -180,8 +205,8 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
                           {({ ro16: "Optimi", quarter: "Sferturi", semi: "Semifinale", final: "Finala", third_place: "Finala Mică" } as Record<string, string>)[m.stage] || "Eliminatoriu"}
                         </span>
                       )}
-                      <span className="text-sm font-medium text-gray-500">
-                        {new Date(m.match_time!).toLocaleString("ro-RO", { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      <span className="text-sm font-medium text-gray-500" suppressHydrationWarning>
+                        {new Date(m.match_time!).toLocaleString("ro-RO", { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bucharest' })}
                       </span>
                     </div>
 
