@@ -71,74 +71,6 @@ function Modal({
   );
 }
 
-/* ── Upload carnet cu preview ── */
-function IdCardUploader({
-  currentUrl,
-  onUpload,
-}: {
-  currentUrl?: string | null;
-  onUpload: (url: string) => void;
-}) {
-  const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
-  const [uploadErr, setUploadErr] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) { setUploadErr("Fișierul trebuie să fie o imagine."); return; }
-    if (file.size > 5 * 1024 * 1024) { setUploadErr("Imaginea nu poate depăși 5MB."); return; }
-
-    setUploading(true);
-    setUploadErr(null);
-
-    const supabase = createClient();
-    const ext = file.name.split(".").pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const filePath = `id-cards/${fileName}`;
-
-    const { error: storageErr } = await supabase.storage
-      .from("player-id-cards")
-      .upload(filePath, file, { upsert: false });
-
-    if (storageErr) { setUploadErr(`Upload eșuat: ${storageErr.message}`); setUploading(false); return; }
-
-    const { data: signedData } = await supabase.storage
-      .from("player-id-cards")
-      .createSignedUrl(filePath, 3600);
-
-    setPreview(signedData?.signedUrl ?? null);
-    onUpload(filePath);
-    setUploading(false);
-  }
-
-  return (
-    <div className="space-y-2">
-      <label className="block text-sm font-semibold text-gray-700">
-        📸 Poză Carnet <span className="ml-1 text-xs font-normal text-gray-400">(max 5MB)</span>
-      </label>
-      <div
-        onClick={() => inputRef.current?.click()}
-        className={`relative cursor-pointer rounded-xl border-2 border-dashed p-3 flex flex-col items-center gap-1.5 transition-all ${
-          uploading ? "border-green-300 bg-green-50" : "border-gray-200 hover:border-green-400 hover:bg-green-50/50"
-        }`}
-      >
-        {preview ? (
-          <img src={preview} alt="Carnet" className="w-24 h-16 object-cover rounded-lg border border-gray-200" />
-        ) : (
-          <>
-            <span className="text-xl">{uploading ? "⏳" : "📷"}</span>
-            <span className="text-xs text-gray-500">{uploading ? "Se încarcă..." : "Click pentru upload"}</span>
-          </>
-        )}
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
-      </div>
-      {uploadErr && <p className="text-xs text-red-600">{uploadErr}</p>}
-    </div>
-  );
-}
-
 /* ── COMPONENTA PRINCIPALĂ ── */
 export default function TeamsManager({ teams, players, sport }: TeamsManagerProps) {
   const [modal, setModal] = useState<"addTeam" | "editTeam" | "deleteTeam" | "players" | null>(null);
@@ -152,11 +84,10 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [cardSignedUrl, setCardSignedUrl] = useState<string | null>(null);
-  const [idCardPath, setIdCardPath] = useState<string | null>(null);
   const playerFormRef = useRef<HTMLFormElement>(null);
 
   function close() { setModal(null); setSelectedTeam(null); setError(null); }
-  function closePlayerModal() { setPlayerModal(null); setSelectedPlayer(null); setPlayerError(null); setIdCardPath(null); }
+  function closePlayerModal() { setPlayerModal(null); setSelectedPlayer(null); setPlayerError(null); }
 
   // ─── Team CRUD ─────────────────────────────────────────
   function handleAddTeam(e: React.FormEvent) {
@@ -193,7 +124,6 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
     e.preventDefault();
     const fd = new FormData(playerFormRef.current!);
     fd.set("team_id", selectedTeam!.id);
-    if (idCardPath) fd.set("id_card_url", idCardPath);
     startTransition(async () => {
       const result = await createPlayerAction(fd);
       if ("error" in result) { setPlayerError(result.error); return; }
@@ -206,7 +136,6 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
     const fd = new FormData(playerFormRef.current!);
     fd.set("id", selectedPlayer!.id);
     fd.set("team_id", selectedTeam!.id);
-    if (idCardPath) fd.set("id_card_url", idCardPath);
     startTransition(async () => {
       const result = await updatePlayerAction(fd);
       if ("error" in result) { setPlayerError(result.error); return; }
@@ -413,7 +342,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
             <div className="flex items-center justify-between">
               <p className="text-gray-500 text-sm">{teamPlayers.length} jucători în echipă</p>
               <button
-                onClick={() => { setSelectedPlayer(null); setPlayerError(null); setIdCardPath(null); setPlayerModal("add"); }}
+                onClick={() => { setSelectedPlayer(null); setPlayerError(null); setPlayerModal("add"); }}
                 className="flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs transition-all"
               >
                 + Adaugă Jucător
@@ -437,10 +366,10 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
                       <div>
                         <p className="font-semibold text-gray-900 text-sm">{player.name}</p>
                         <span className={`text-xs font-medium ${player.role === "goalkeeper" ? "text-blue-600" : "text-green-600"}`}>
-                          {player.role === "goalkeeper" ? "🧤 Portar" : "⚽ Jucător"}
+                          {player.role === "goalkeeper" ? "🧤 Portar" : (sport === "basketball" ? "🏀 Jucător" : "⚽ Jucător")}
                           {player.role === "goalkeeper"
                             ? ` · ${player.goals_conceded} gp`
-                            : ` · ${player.goals_scored} goluri`}
+                            : (sport === "basketball" ? ` · ${player.goals_scored} puncte` : ` · ${player.goals_scored} goluri`)}
                         </span>
                         {sport === "football" && (
                           <span className="ml-2 inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
@@ -458,7 +387,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
                         >📸</button>
                       )}
                       <button
-                        onClick={() => { setSelectedPlayer(player); setPlayerError(null); setIdCardPath(null); setPlayerModal("edit"); }}
+                        onClick={() => { setSelectedPlayer(player); setPlayerError(null); setPlayerModal("edit"); }}
                         className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-green-200 text-green-700 hover:bg-green-50 transition-colors"
                       >Editează</button>
                       <button
@@ -487,21 +416,24 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
                     <input name="jersey_number" type="number" required min={1} max={99} placeholder="10" className="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-green-500 text-sm" />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rol *</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { value: "player", label: "⚽ Jucător" },
-                      { value: "goalkeeper", label: "🧤 Portar" },
-                    ].map(({ value, label }) => (
-                      <label key={value} className="flex items-center gap-2 p-2.5 rounded-xl border-2 border-gray-200 cursor-pointer has-[:checked]:border-green-500 has-[:checked]:bg-green-50 transition-all text-sm">
-                        <input type="radio" name="role" value={value} defaultChecked={value === "player"} className="accent-green-600" />
-                        <span className="font-medium text-gray-700">{label}</span>
-                      </label>
-                    ))}
+                {sport !== "basketball" ? (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rol *</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: "player", label: "⚽ Jucător" },
+                        { value: "goalkeeper", label: "🧤 Portar" },
+                      ].map(({ value, label }) => (
+                        <label key={value} className="flex items-center gap-2 p-2.5 rounded-xl border-2 border-gray-200 cursor-pointer has-[:checked]:border-green-500 has-[:checked]:bg-green-50 transition-all text-sm">
+                          <input type="radio" name="role" value={value} defaultChecked={value === "player"} className="accent-green-600" />
+                          <span className="font-medium text-gray-700">{label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <IdCardUploader onUpload={setIdCardPath} />
+                ) : (
+                  <input type="hidden" name="role" value="player" />
+                )}
                 {playerError && <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{playerError}</div>}
                 <div className="flex gap-3">
                   <button type="button" onClick={closePlayerModal} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition-colors">Anulează</button>
@@ -528,21 +460,24 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
                     <input name="jersey_number" type="number" required min={1} max={99} defaultValue={selectedPlayer.jersey_number} className="w-full px-3 py-2.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-green-500 text-sm" />
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rol *</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    {[
-                      { value: "player", label: "⚽ Jucător" },
-                      { value: "goalkeeper", label: "🧤 Portar" },
-                    ].map(({ value, label }) => (
-                      <label key={value} className="flex items-center gap-2 p-2.5 rounded-xl border-2 border-gray-200 cursor-pointer has-[:checked]:border-green-500 has-[:checked]:bg-green-50 transition-all text-sm">
-                        <input type="radio" name="role" value={value} defaultChecked={selectedPlayer.role === value} className="accent-green-600" />
-                        <span className="font-medium text-gray-700">{label}</span>
-                      </label>
-                    ))}
+                {sport !== "basketball" ? (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Rol *</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { value: "player", label: "⚽ Jucător" },
+                        { value: "goalkeeper", label: "🧤 Portar" },
+                      ].map(({ value, label }) => (
+                        <label key={value} className="flex items-center gap-2 p-2.5 rounded-xl border-2 border-gray-200 cursor-pointer has-[:checked]:border-green-500 has-[:checked]:bg-green-50 transition-all text-sm">
+                          <input type="radio" name="role" value={value} defaultChecked={selectedPlayer.role === value} className="accent-green-600" />
+                          <span className="font-medium text-gray-700">{label}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                <IdCardUploader currentUrl={selectedPlayer.id_card_url} onUpload={setIdCardPath} />
+                ) : (
+                  <input type="hidden" name="role" value="player" />
+                )}
                 {playerError && <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{playerError}</div>}
                 <div className="flex gap-3">
                   <button type="button" onClick={closePlayerModal} className="flex-1 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold text-sm hover:bg-gray-50 transition-colors">Anulează</button>

@@ -18,8 +18,10 @@ export async function addGoalAction(formData: FormData): Promise<ActionResult> {
   const match_id  = formData.get("match_id")  as string;
   const player_id = formData.get("player_id") as string;
   const team_id   = formData.get("team_id")   as string;
-  const points_value = formData.get("points_value") ? parseInt(formData.get("points_value") as string, 10) : 1;
+  const rawPoints = formData.get("points_value");
+  const parsedPoints = rawPoints ? parseInt(rawPoints as string, 10) : 1;
   let event_type = (formData.get("event_type") as string) || "goal_scored";
+  const points_value = event_type === "goal_scored" ? Math.max(1, isNaN(parsedPoints) ? 1 : parsedPoints) : 0;
 
   if (!match_id || !player_id || !team_id) {
     return { error: "Datele pentru eveniment sunt incomplete." };

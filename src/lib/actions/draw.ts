@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { getCurrentSport } from "@/lib/sport";
+import { generateMatchesForGroup, type MatchToSchedule } from "@/lib/draw-algorithm";
 
 type ActionResult = { success: true } | { error: string };
 
@@ -109,69 +110,15 @@ export async function drawMatchesAction(): Promise<ActionResult> {
     grouped[t.group_name].push(t.id);
   }
 
-  const matchesToInsert: {
-    home_team_id: string;
-    away_team_id: string;
-    stage: string;
-    status: string;
-    round: number;
-    match_time: null;
-    sport_type: string;
-  }[] = [];
+  const matchesToInsert: MatchToSchedule[] = [];
 
   for (const [group, groupTeams] of Object.entries(grouped)) {
-    const n = groupTeams.length;
-    if (n < 2) {
-      return { error: `Grupa ${group} are prea puține echipe (${n}).` };
+    if (groupTeams.length < 2) {
+      return { error: `Grupa ${group} are prea puține echipe (${groupTeams.length}).` };
     }
 
-    const arr = [...groupTeams];
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-
-    if (sport === "basketball" || n <= 4) {
-      // Fiecare cu fiecare
-      for (let i = 0; i < n; i++) {
-        for (let j = i + 1; j < n; j++) {
-          matchesToInsert.push({
-            home_team_id: arr[i],
-            away_team_id: arr[j],
-            stage: "group",
-            status: "scheduled",
-            round: ((i + j) % (n - 1 || 1)) + 1,
-            match_time: null,
-            sport_type: sport,
-          });
-        }
-      }
-    } else {
-      // Fotbal cu n >= 5 (de exemplu 8 echipe per grupă = 32 echipe, sau 9 per grupă = 36 echipe)
-      // Fiecare echipă joacă exact 4 meciuri: cu adversarul de la distanța 1 și distanța 2
-      for (let i = 0; i < n; i++) {
-        matchesToInsert.push({
-          home_team_id: arr[i],
-          away_team_id: arr[(i + 1) % n],
-          stage: "group",
-          status: "scheduled",
-          round: 1,
-          match_time: null,
-          sport_type: sport,
-        });
-      }
-      for (let i = 0; i < n; i++) {
-        matchesToInsert.push({
-          home_team_id: arr[i],
-          away_team_id: arr[(i + 2) % n],
-          stage: "group",
-          status: "scheduled",
-          round: 2,
-          match_time: null,
-          sport_type: sport,
-        });
-      }
-    }
+    const groupMatches = generateMatchesForGroup(groupTeams, sport);
+    matchesToInsert.push(...groupMatches);
   }
 
   const { error: insertErr } = await supabase.from("matches").insert(matchesToInsert);

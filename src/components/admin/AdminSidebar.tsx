@@ -25,8 +25,7 @@ export default function AdminSidebar({ sport, userEmail }: { sport: SportType; u
 
   const navItems = [
     { href: "/admin",                   label: "Dashboard",        icon: "📊" },
-    { href: "/admin/echipe",            label: "Echipe",           icon: "🛡️" },
-    { href: "/admin/jucatori",          label: "Jucători",         icon: "👤" },
+    { href: "/admin/echipe",            label: "Echipe & Jucători",icon: "🛡️" },
     { href: "/admin/tragere-la-sorti",  label: "Tragere la Sorți", icon: "🎲" },
     { href: "/admin/clasament",         label: "Clasament",        icon: "🏆" },
     { href: "/admin/meciuri",           label: "Programare",       icon: "📅" },

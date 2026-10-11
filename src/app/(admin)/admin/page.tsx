@@ -143,7 +143,7 @@ export default async function AdminDashboard() {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h2 className="font-bold text-gray-900">👤 Jucători recenți</h2>
-            <Link href="/admin/jucatori" className="text-green-600 hover:text-green-700 text-sm font-semibold">
+            <Link href="/admin/echipe" className="text-green-600 hover:text-green-700 text-sm font-semibold">
               Vezi toți →
             </Link>
           </div>

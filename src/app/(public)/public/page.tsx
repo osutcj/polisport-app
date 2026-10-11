@@ -8,6 +8,96 @@ import { SPORT_LABELS, SPORT_ICONS } from "@/lib/sport";
 export const metadata: Metadata = { title: "Portal Public — Polisport" };
 export const dynamic = "force-dynamic";
 
+function PublicMatchRow({ match, sport }: { match: any; sport: SportType }) {
+  const m = match;
+  const homeYellows = (m as any).match_events?.filter((e: any) => e.team_id === m.home_team_id && e.event_type === "yellow_card").length || 0;
+  const homeReds = (m as any).match_events?.filter((e: any) => e.team_id === m.home_team_id && e.event_type === "red_card").length || 0;
+  const awayYellows = (m as any).match_events?.filter((e: any) => e.team_id === m.away_team_id && e.event_type === "yellow_card").length || 0;
+  const awayReds = (m as any).match_events?.filter((e: any) => e.team_id === m.away_team_id && e.event_type === "red_card").length || 0;
+
+  const homeScoreLive = (m as any).match_events?.filter((e: any) => e.team_id === m.home_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal")).reduce((sum: number, e: any) => sum + (e.points_value !== undefined ? e.points_value : 1), 0) || 0;
+  const awayScoreLive = (m as any).match_events?.filter((e: any) => e.team_id === m.away_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal")).reduce((sum: number, e: any) => sum + (e.points_value !== undefined ? e.points_value : 1), 0) || 0;
+  const homeScore = m.status === "finished" ? m.home_score : homeScoreLive;
+  const awayScore = m.status === "finished" ? m.away_score : awayScoreLive;
+
+  const groupName = (m.home_team as any)?.group_name || (m.away_team as any)?.group_name;
+  const groupColor = groupName === "A" ? "bg-blue-50 text-blue-700 border-blue-200"
+    : groupName === "B" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+    : groupName === "C" ? "bg-purple-50 text-purple-700 border-purple-200"
+    : groupName === "D" ? "bg-amber-50 text-amber-700 border-amber-200"
+    : "bg-gray-100 text-gray-700 border-gray-200";
+
+  return (
+    <li className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50/80 transition-colors">
+      <div className="flex flex-col gap-1.5 min-w-[120px]">
+        {m.stage === "group" ? (
+          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black border w-fit ${groupColor}`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+            Grupa {groupName || "?"}
+          </span>
+        ) : (
+          <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
+            {({ ro16: "Optimi", quarter: "Sferturi", semi: "Semifinale", final: "Finala", third_place: "Finala Mică" } as Record<string, string>)[m.stage] || "Eliminatoriu"}
+          </span>
+        )}
+        <span className="text-sm font-medium text-gray-500" suppressHydrationWarning>
+          {m.match_time ? new Date(m.match_time).toLocaleString("ro-RO", { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bucharest' }) : "Dată nestabilită"}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4 sm:gap-6 bg-gray-50/50 sm:bg-transparent p-3 sm:p-0 rounded-xl">
+        <div className={`flex items-center justify-end gap-2 font-bold w-32 sm:w-40 text-right ${homeScore !== null && homeScore > (awayScore || 0) ? 'text-gray-900' : 'text-gray-600'}`}>
+          {(m.home_team as any)?.name}
+          {sport === "football" && (homeYellows > 0 || homeReds > 0) && (
+            <span className="flex items-center gap-1 text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+              {homeYellows > 0 && <span className="text-yellow-600">🟨 {homeYellows}</span>}
+              {homeReds > 0 && <span className="text-red-600">🟥 {homeReds}</span>}
+            </span>
+          )}
+        </div>
+        
+        <div className="flex items-center justify-center min-w-[80px] relative">
+          {m.status === "finished" ? (
+            <div className="flex flex-col items-center">
+              <span className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg font-black text-lg shadow-inner">
+                {homeScore} - {awayScore}
+              </span>
+              {m.penalty_winner_id && (
+                <span className="text-[10px] uppercase font-bold text-amber-600 mt-1">
+                  {m.penalty_winner_id === m.home_team_id ? "Gazda" : "Oaspete"} (Pen)
+                </span>
+              )}
+              {(m as any).forfeit_loser_id && (
+                <span className="text-[9px] uppercase font-bold text-red-600 mt-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
+                  Masă verde
+                </span>
+              )}
+            </div>
+          ) : m.status === "in_progress" ? (
+            <div className="flex flex-col items-center">
+              <span className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg font-black text-lg shadow-inner">
+                {homeScore} - {awayScore}
+              </span>
+            </div>
+          ) : (
+            <span className="text-gray-300 font-black text-sm">VS</span>
+          )}
+        </div>
+
+        <div className={`flex items-center justify-start gap-2 font-bold w-32 sm:w-40 text-left ${awayScore !== null && awayScore > (homeScore || 0) ? 'text-gray-900' : 'text-gray-600'}`}>
+          {sport === "football" && (awayYellows > 0 || awayReds > 0) && (
+            <span className="flex items-center gap-1 text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
+              {awayYellows > 0 && <span className="text-yellow-600">🟨 {awayYellows}</span>}
+              {awayReds > 0 && <span className="text-red-600">🟥 {awayReds}</span>}
+            </span>
+          )}
+          {(m.away_team as any)?.name}
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export default async function PublicPage({ searchParams }: { searchParams: Promise<{ sport?: string }> }) {
   const params = await searchParams;
   const sport: SportType = params.sport === "basketball" ? "basketball" : "football";
@@ -30,10 +120,10 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
   const { data: matches } = await supabase
     .from("matches")
     .select(`
-      id, home_team_id, away_team_id, home_score, away_score, status, stage, match_time, penalty_winner_id, forfeit_loser_id, bracket_position,
+      id, home_team_id, away_team_id, home_score, away_score, status, stage, round, match_time, penalty_winner_id, forfeit_loser_id, bracket_position,
       home_team:teams!matches_home_team_id_fkey(name, group_name),
       away_team:teams!matches_away_team_id_fkey(name, group_name),
-      match_events(team_id, event_type)
+      match_events(team_id, event_type, points_value)
     `)
     .eq("sport_type", sport)
     .order("match_time", { ascending: true });
@@ -75,6 +165,21 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
       .limit(10);
     players = data || [];
   }
+
+  // Organizare meciuri din faza grupelor pe Runde (Etape) și pe Grupe
+  const groupMatches = scheduledMatches.filter(m => m.stage === "group");
+  const scheduledKnockoutMatches = scheduledMatches.filter(m => m.stage !== "group");
+
+  const roundsMap = new Map<number, Record<string, typeof scheduledMatches>>();
+  groupMatches.forEach(m => {
+    const r = m.round || 1;
+    if (!roundsMap.has(r)) roundsMap.set(r, {});
+    const byGroup = roundsMap.get(r)!;
+    const g = (m.home_team as any)?.group_name || (m.away_team as any)?.group_name || "Altele";
+    if (!byGroup[g]) byGroup[g] = [];
+    byGroup[g].push(m);
+  });
+  const sortedRoundNumbers = Array.from(roundsMap.keys()).sort((a, b) => a - b);
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -168,104 +273,109 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
         </section>
 
         {/* SECȚIUNEA 3: Program */}
-        <section>
-          <h2 className="text-2xl font-black text-gray-900 mb-8 flex items-center gap-3">
-            <span className="text-3xl">📅</span> Program Meciuri
-          </h2>
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-            <ul className="divide-y divide-gray-100">
-              {scheduledMatches.map(m => {
-                const homeYellows = (m as any).match_events?.filter((e: any) => e.team_id === m.home_team_id && e.event_type === "yellow_card").length || 0;
-                const homeReds = (m as any).match_events?.filter((e: any) => e.team_id === m.home_team_id && e.event_type === "red_card").length || 0;
-                const awayYellows = (m as any).match_events?.filter((e: any) => e.team_id === m.away_team_id && e.event_type === "yellow_card").length || 0;
-                const awayReds = (m as any).match_events?.filter((e: any) => e.team_id === m.away_team_id && e.event_type === "red_card").length || 0;
-                
-                const homeScoreLive = (m as any).match_events?.filter((e: any) => e.team_id === m.home_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal")).reduce((sum: number, e: any) => sum + (e.points_value !== undefined ? e.points_value : 1), 0) || 0;
-                const awayScoreLive = (m as any).match_events?.filter((e: any) => e.team_id === m.away_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal")).reduce((sum: number, e: any) => sum + (e.points_value !== undefined ? e.points_value : 1), 0) || 0;
-                const homeScore = m.status === "finished" ? m.home_score : homeScoreLive;
-                const awayScore = m.status === "finished" ? m.away_score : awayScoreLive;
+        <section className="space-y-8">
+          <div>
+            <h2 className="text-2xl font-black text-gray-900 flex items-center gap-3">
+              <span className="text-3xl">📅</span> Program Meciuri (Etape & Grupe)
+            </h2>
+            <p className="text-gray-500 text-sm mt-1">
+              Meciurile din grupe sunt organizate pe runde (etape) succesive, fiecare etapă conținând meciurile programate pentru fiecare echipă.
+            </p>
+          </div>
 
-                  const groupName = (m.home_team as any)?.group_name || (m.away_team as any)?.group_name;
-                  const groupColor = groupName === "A" ? "bg-blue-50 text-blue-700 border-blue-200"
-                    : groupName === "B" ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    : groupName === "C" ? "bg-purple-50 text-purple-700 border-purple-200"
-                    : groupName === "D" ? "bg-amber-50 text-amber-700 border-amber-200"
-                    : "bg-gray-100 text-gray-700 border-gray-200";
+          {scheduledMatches.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center text-gray-500">
+              Niciun meci programat momentan.
+            </div>
+          ) : (
+            <div className="space-y-8">
+              {/* Etape din faza grupelor */}
+              {sortedRoundNumbers.map(roundNum => {
+                const groupsInRound = roundsMap.get(roundNum)!;
+                const sortedGroupKeys = Object.keys(groupsInRound).sort();
+                const roundMatchesCount = Object.values(groupsInRound).flat().length;
 
-                  return (
-                  <li key={m.id} className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
-                    <div className="flex flex-col gap-1.5 min-w-[120px]">
-                      {m.stage === "group" ? (
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-black border w-fit ${groupColor}`}>
-                          <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
-                          Grupa {groupName || "?"}
+                return (
+                  <div key={roundNum} className="space-y-4">
+                    {/* Banner Runda */}
+                    <div className="flex items-center justify-between bg-gradient-to-r from-blue-900 via-indigo-900 to-blue-900 text-white px-6 py-4 rounded-2xl shadow-sm border border-blue-800">
+                      <div className="flex items-center gap-3">
+                        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-black text-white text-base shadow-sm">
+                          {roundNum}
                         </span>
-                      ) : (
-                        <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
-                          {({ ro16: "Optimi", quarter: "Sferturi", semi: "Semifinale", final: "Finala", third_place: "Finala Mică" } as Record<string, string>)[m.stage] || "Eliminatoriu"}
-                        </span>
-                      )}
-                      <span className="text-sm font-medium text-gray-500" suppressHydrationWarning>
-                        {new Date(m.match_time!).toLocaleString("ro-RO", { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Bucharest' })}
+                        <div>
+                          <h3 className="text-lg sm:text-xl font-black tracking-tight">
+                            Runda {roundNum}
+                          </h3>
+                          <p className="text-xs text-blue-200">
+                            {sport === "basketball"
+                              ? `Etapa ${roundNum} · Toate echipele au meciul ${roundNum}`
+                              : `Etapa ${roundNum} · Toate echipele au programat meciul ${roundNum}`}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-xs bg-white/10 px-3 py-1.5 rounded-full font-bold text-blue-100">
+                        {roundMatchesCount} {roundMatchesCount === 1 ? "meci" : "meciuri"}
                       </span>
                     </div>
 
-                  <div className="flex items-center gap-4 sm:gap-6 bg-gray-50/50 sm:bg-transparent p-3 sm:p-0 rounded-xl">
-                    <div className={`flex items-center justify-end gap-2 font-bold w-32 sm:w-40 text-right ${homeScore !== null && homeScore > (awayScore || 0) ? 'text-gray-900' : 'text-gray-600'}`}>
-                      {(m.home_team as any)?.name}
-                      {sport === "football" && (homeYellows > 0 || homeReds > 0) && (
-                        <span className="flex items-center gap-1 text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
-                          {homeYellows > 0 && <span className="text-yellow-600">🟨 {homeYellows}</span>}
-                          {homeReds > 0 && <span className="text-red-600">🟥 {homeReds}</span>}
-                        </span>
-                      )}
-                    </div>
-                    
-                        <div className="flex items-center justify-center min-w-[80px] relative">
-                          {m.status === "finished" ? (
-                            <div className="flex flex-col items-center">
-                              <span className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg font-black text-lg shadow-inner">
-                                {homeScore} - {awayScore}
-                              </span>
-                              {m.penalty_winner_id && (
-                                <span className="text-[10px] uppercase font-bold text-amber-600 mt-1">
-                                  {m.penalty_winner_id === m.home_team_id ? "Gazda" : "Oaspete"} (Pen)
-                                </span>
-                              )}
-                              {(m as any).forfeit_loser_id && (
-                                <span className="text-[9px] uppercase font-bold text-red-600 mt-1 bg-red-50 px-1.5 py-0.5 rounded border border-red-100">
-                                  Masă verde
-                                </span>
-                              )}
-                            </div>
-                          ) : m.status === "in_progress" ? (
-                        <div className="flex flex-col items-center">
-                          <span className="flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg font-black text-lg shadow-inner">
-                            {homeScore} - {awayScore}
-                          </span>
+                    {/* Grupe din această rundă */}
+                    <div className="grid grid-cols-1 gap-4">
+                      {sortedGroupKeys.map(grpKey => (
+                        <div key={grpKey} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                          <div className="bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between">
+                            <span className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                              <span className={`w-2.5 h-2.5 rounded-full ${
+                                grpKey === 'A' ? 'bg-blue-500' :
+                                grpKey === 'B' ? 'bg-emerald-500' :
+                                grpKey === 'C' ? 'bg-purple-500' :
+                                grpKey === 'D' ? 'bg-amber-500' : 'bg-gray-400'
+                              }`} />
+                              Grupa {grpKey}
+                            </span>
+                            <span className="text-xs text-gray-500 font-medium">
+                              {groupsInRound[grpKey].length} {groupsInRound[grpKey].length === 1 ? "meci" : "meciuri"}
+                            </span>
+                          </div>
+                          <ul className="divide-y divide-gray-100">
+                            {groupsInRound[grpKey].map(m => (
+                              <PublicMatchRow key={m.id} match={m} sport={sport} />
+                            ))}
+                          </ul>
                         </div>
-                      ) : (
-                        <span className="text-gray-300 font-black text-sm">VS</span>
-                      )}
-                    </div>
-
-                    <div className={`flex items-center justify-start gap-2 font-bold w-32 sm:w-40 text-left ${awayScore !== null && awayScore > (homeScore || 0) ? 'text-gray-900' : 'text-gray-600'}`}>
-                      {sport === "football" && (awayYellows > 0 || awayReds > 0) && (
-                        <span className="flex items-center gap-1 text-[10px] bg-gray-100 px-1.5 py-0.5 rounded">
-                          {awayYellows > 0 && <span className="text-yellow-600">🟨 {awayYellows}</span>}
-                          {awayReds > 0 && <span className="text-red-600">🟥 {awayReds}</span>}
-                        </span>
-                      )}
-                      {(m.away_team as any)?.name}
+                      ))}
                     </div>
                   </div>
-                </li>
-              )})}
-              {scheduledMatches.length === 0 && (
-                <li className="p-10 text-center text-gray-500">Niciun meci programat momentan.</li>
+                );
+              })}
+
+              {/* Faze Eliminatorii Programate */}
+              {scheduledKnockoutMatches.length > 0 && (
+                <div className="space-y-4 pt-4">
+                  <div className="bg-gradient-to-r from-rose-900 via-rose-800 to-rose-900 text-white px-6 py-4 rounded-2xl shadow-sm border border-rose-800 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black tracking-tight">
+                        🔥 Faze Eliminatorii Programate
+                      </h3>
+                      <p className="text-xs text-rose-200">
+                        Meciuri stabilite din etapele eliminatorii
+                      </p>
+                    </div>
+                    <span className="text-xs bg-white/10 px-3 py-1.5 rounded-full font-bold text-rose-100">
+                      {scheduledKnockoutMatches.length} {scheduledKnockoutMatches.length === 1 ? "meci" : "meciuri"}
+                    </span>
+                  </div>
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <ul className="divide-y divide-gray-100">
+                      {scheduledKnockoutMatches.map(m => (
+                        <PublicMatchRow key={m.id} match={m} sport={sport} />
+                      ))}
+                    </ul>
+                  </div>
+                </div>
               )}
-            </ul>
-          </div>
+            </div>
+          )}
         </section>
 
         {/* SECȚIUNEA 4: Marcatori */}

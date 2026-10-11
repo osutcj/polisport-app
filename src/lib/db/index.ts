@@ -76,6 +76,8 @@ function initSchema(db: Database.Database) {
       id_card_url TEXT,
       goals_scored INTEGER NOT NULL DEFAULT 0,
       goals_conceded INTEGER NOT NULL DEFAULT 0,
+      yellow_cards INTEGER NOT NULL DEFAULT 0,
+      red_cards INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       CONSTRAINT unique_jersey_per_team UNIQUE (team_id, jersey_number)
     );
@@ -110,8 +112,9 @@ function initSchema(db: Database.Database) {
       points_value INTEGER NOT NULL DEFAULT 1
     );
 
-    CREATE VIEW IF NOT EXISTS public_players AS
-    SELECT id, team_id, name, jersey_number, role, goals_scored, goals_conceded, created_at
+    DROP VIEW IF EXISTS public_players;
+    CREATE VIEW public_players AS
+    SELECT id, team_id, name, jersey_number, role, goals_scored, goals_conceded, yellow_cards, red_cards, created_at
     FROM players;
 
     CREATE TABLE IF NOT EXISTS users (
@@ -155,8 +158,11 @@ function initSchema(db: Database.Database) {
     AFTER INSERT ON match_events
     FOR EACH ROW
     BEGIN
-      UPDATE players SET goals_scored = goals_scored + COALESCE(NEW.points_value, 1)
-      WHERE id = NEW.player_id AND NEW.event_type = 'goal_scored';
+      UPDATE players SET
+        goals_scored = goals_scored + (CASE WHEN NEW.event_type = 'goal_scored' THEN MAX(1, COALESCE(NEW.points_value, 1)) ELSE 0 END),
+        yellow_cards = yellow_cards + (CASE WHEN NEW.event_type = 'yellow_card' THEN 1 ELSE 0 END),
+        red_cards = red_cards + (CASE WHEN NEW.event_type = 'red_card' THEN 1 ELSE 0 END)
+      WHERE id = NEW.player_id;
 
       UPDATE players SET goals_conceded = goals_conceded + 1
       WHERE id = NEW.player_id AND NEW.event_type = 'goal_conceded';
@@ -167,13 +173,29 @@ function initSchema(db: Database.Database) {
     AFTER DELETE ON match_events
     FOR EACH ROW
     BEGIN
-      UPDATE players SET goals_scored = MAX(0, goals_scored - COALESCE(OLD.points_value, 1))
-      WHERE id = OLD.player_id AND OLD.event_type = 'goal_scored';
+      UPDATE players SET
+        goals_scored = MAX(0, goals_scored - (CASE WHEN OLD.event_type = 'goal_scored' THEN MAX(1, COALESCE(OLD.points_value, 1)) ELSE 0 END)),
+        yellow_cards = MAX(0, yellow_cards - (CASE WHEN OLD.event_type = 'yellow_card' THEN 1 ELSE 0 END)),
+        red_cards = MAX(0, red_cards - (CASE WHEN OLD.event_type = 'red_card' THEN 1 ELSE 0 END))
+      WHERE id = OLD.player_id;
 
       UPDATE players SET goals_conceded = MAX(0, goals_conceded - 1)
       WHERE id = OLD.player_id AND OLD.event_type = 'goal_conceded';
     END;
   `);
+
+  // Migrări automate pentru coloane adăugate pe tabele existente
+  try {
+    const cols = (db.prepare("PRAGMA table_info(players)").all() as { name: string }[]).map(c => c.name);
+    if (!cols.includes("yellow_cards")) {
+      db.exec("ALTER TABLE players ADD COLUMN yellow_cards INTEGER NOT NULL DEFAULT 0;");
+    }
+    if (!cols.includes("red_cards")) {
+      db.exec("ALTER TABLE players ADD COLUMN red_cards INTEGER NOT NULL DEFAULT 0;");
+    }
+  } catch (err) {
+    console.error("Eroare la migrare schema players:", err);
+  }
 
   // Ensure default admin user
   const adminEmail = process.env.ADMIN_EMAIL || "andrei.armean17@gmail.com";

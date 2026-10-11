@@ -55,7 +55,6 @@ export function generateGroupDraw(teams: DrawTeam[]): DrawRound[] {
   const hasOdd = shuffled.length % 2 !== 0;
   type Slot = DrawTeam | null;
   const workingTeams: Slot[] = hasOdd ? [...shuffled, null] : [...shuffled];
-  const _n = workingTeams.length; // garantat par
 
   // Round-Robin Rotation:
   // - workingTeams[0] este FIXAT
@@ -143,4 +142,117 @@ export function validateDraw(rounds: DrawRound[], teams: DrawTeam[]): string[] {
   }
 
   return errors;
+}
+
+// ─── GENERARE MECIURI PE ETAPE PENTRU O GRUPĂ ──────────────────────────────
+export interface MatchToSchedule {
+  home_team_id: string;
+  away_team_id: string;
+  stage: string;
+  status: string;
+  round: number;
+  match_time: null;
+  sport_type: string;
+}
+
+export function generateMatchesForGroup(teamIds: string[], sport: string): MatchToSchedule[] {
+  const n = teamIds.length;
+  if (n < 2) return [];
+
+  const arr = [...teamIds];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  if (sport === "basketball" || n <= 4) {
+    // Circle method round-robin
+    const hasOdd = n % 2 !== 0;
+    const working: (string | null)[] = hasOdd ? [...arr, null] : [...arr];
+    const totalSlots = working.length;
+    const fixed = working[0];
+    const rotating = working.slice(1);
+    const rotLen = rotating.length;
+    const matches: MatchToSchedule[] = [];
+
+    for (let r = 0; r < rotLen; r++) {
+      const current = [
+        fixed,
+        ...rotating.slice(r),
+        ...rotating.slice(0, r),
+      ];
+      for (let i = 0; i < totalSlots / 2; i++) {
+        const t1 = current[i];
+        const t2 = current[totalSlots - 1 - i];
+        if (t1 && t2) {
+          const coinFlip = Math.random() > 0.5;
+          matches.push({
+            home_team_id: coinFlip ? t1 : t2,
+            away_team_id: coinFlip ? t2 : t1,
+            stage: "group",
+            status: "scheduled",
+            round: r + 1,
+            match_time: null,
+            sport_type: sport,
+          });
+        }
+      }
+    }
+    return matches;
+  } else {
+    // n >= 5: fiecare echipă joacă exact 4 meciuri
+    const rawMatches: { home: string; away: string }[] = [];
+    for (let i = 0; i < n; i++) {
+      const coinFlip = Math.random() > 0.5;
+      rawMatches.push({
+        home: coinFlip ? arr[i] : arr[(i + 1) % n],
+        away: coinFlip ? arr[(i + 1) % n] : arr[i],
+      });
+    }
+    for (let i = 0; i < n; i++) {
+      const coinFlip = Math.random() > 0.5;
+      rawMatches.push({
+        home: coinFlip ? arr[i] : arr[(i + 2) % n],
+        away: coinFlip ? arr[(i + 2) % n] : arr[i],
+      });
+    }
+
+    const maxPerRound = Math.floor(n / 2);
+    const maxRounds = n % 2 === 0 ? 4 : 5;
+
+    function solve(idx: number, assignment: number[]): number[] | null {
+      if (idx === rawMatches.length) return assignment;
+      const m = rawMatches[idx];
+      for (let r = 1; r <= maxRounds; r++) {
+        const count = assignment.filter((x) => x === r).length;
+        if (count >= maxPerRound) continue;
+        const conflict = rawMatches.slice(0, idx).some((prev, pIdx) => {
+          return (
+            assignment[pIdx] === r &&
+            (prev.home === m.home ||
+              prev.home === m.away ||
+              prev.away === m.home ||
+              prev.away === m.away)
+          );
+        });
+        if (!conflict) {
+          assignment[idx] = r;
+          const res = solve(idx + 1, assignment);
+          if (res) return res;
+        }
+      }
+      return null;
+    }
+
+    const sol = solve(0, []);
+    return rawMatches.map((m, idx) => ({
+      home_team_id: m.home,
+      away_team_id: m.away,
+      stage: "group",
+      status: "scheduled",
+      round: sol ? sol[idx] : 1,
+      match_time: null,
+      sport_type: sport,
+    }));
+  }
 }

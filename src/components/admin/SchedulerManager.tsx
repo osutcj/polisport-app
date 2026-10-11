@@ -13,6 +13,7 @@ interface Match {
   id: string;
   stage: string;
   status: string;
+  round?: number | null;
   match_time: string | null;
   home_team: Team;
   away_team: Team;
@@ -183,14 +184,21 @@ export default function SchedulerManager({ matches }: { matches: Match[] }) {
                     </div>
                   </td>
                   <td className="py-4 px-4 text-center">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border shadow-xs ${groupStyle.bg} ${groupStyle.text} ${groupStyle.border}`}
-                    >
-                      <span className="w-2 h-2 rounded-full bg-current opacity-80" />
-                      {match.stage === "group"
-                        ? `Grupa ${group || "?"}`
-                        : STAGE_LABELS[match.stage] || "Eliminatoriu"}
-                    </span>
+                    <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black border shadow-xs ${groupStyle.bg} ${groupStyle.text} ${groupStyle.border}`}
+                      >
+                        <span className="w-2 h-2 rounded-full bg-current opacity-80" />
+                        {match.stage === "group"
+                          ? `Grupa ${group || "?"}`
+                          : STAGE_LABELS[match.stage] || "Eliminatoriu"}
+                      </span>
+                      {match.stage === "group" && match.round && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-200">
+                          Runda {match.round}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="py-4 px-4 text-right">
                     <div className="flex items-center justify-end gap-3">

@@ -19,6 +19,7 @@ export default async function AdminMeciuriPage() {
       away_team_id,
       stage,
       status,
+      round,
       match_time,
       home_team:teams!matches_home_team_id_fkey(id, name, group_name),
       away_team:teams!matches_away_team_id_fkey(id, name, group_name)
@@ -26,7 +27,8 @@ export default async function AdminMeciuriPage() {
     .eq("sport_type", sport)
     .is("match_time", null)
     .order("stage", { ascending: true })
-    .order("id", { ascending: true }); // stabilitate în afișare
+    .order("round", { ascending: true })
+    .order("id", { ascending: true });
 
   return (
     <div className="p-6 lg:p-8 max-w-5xl">
