@@ -96,18 +96,23 @@ export default async function AdminClasamentPage() {
                       <th className="px-4 py-3">Echipă</th>
                       <th className="px-4 py-3 text-center">Pct</th>
                       <th className="px-4 py-3 text-center hidden sm:table-cell">M</th>
-                      <th className="px-4 py-3 text-center" title="Goluri Marcate - Primite">GM-GP</th>
-                      <th className="px-4 py-3 text-center" title="Golaveraj">GD</th>
+                      <th className="px-4 py-3 text-center" title={sport === "basketball" ? "Puncte Marcate - Primite" : "Goluri Marcate - Primite"}>
+                        {sport === "basketball" ? "PM-PP" : "GM-GP"}
+                      </th>
+                      <th className="px-4 py-3 text-center" title={sport === "basketball" ? "Diferență Puncte" : "Golaveraj"}>
+                        {sport === "basketball" ? "PD" : "GD"}
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {groupTeams.map((team, index) => {
                       const gd = team.goals_scored - team.goals_conceded;
+                      const qualifyLimit = sport === "basketball" ? 2 : 4;
                       return (
                         <tr key={team.id} className="hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-3 text-center">
                             <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold ${
-                              index < 4 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                              index < qualifyLimit ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                             }`}>
                               {index + 1}
                             </span>
@@ -178,7 +183,7 @@ export default async function AdminClasamentPage() {
               {topPlayers.length === 0 && (
                 <tr>
                   <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                    Nu s-a marcat niciun gol încă.
+                    {sport === "basketball" ? "Nu s-au înregistrat puncte încă." : "Nu s-a marcat niciun gol încă."}
                   </td>
                 </tr>
               )}

@@ -328,12 +328,18 @@ export default function ProgramManager({
 
   // ─── Finalizează meciul ───────────────────────────────────────────────────
   function handleFinalize() {
-    if (localMatch!.stage !== "group" && !forfeitLoserId) {
-      const homeGoals = localMatch!.match_events.filter(e => e.team_id === localMatch!.home_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal"));
-      const awayGoals = localMatch!.match_events.filter(e => e.team_id === localMatch!.away_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal"));
-      const homeScore = sport === "football" ? homeGoals.length : homeGoals.reduce((sum, e) => sum + (e.points_value !== undefined ? e.points_value : 1), 0);
-      const awayScore = sport === "football" ? awayGoals.length : awayGoals.reduce((sum, e) => sum + (e.points_value !== undefined ? e.points_value : 1), 0);
-      if (sport !== "basketball" && homeScore === awayScore && !penaltyWinnerId) {
+    const homeGoals = localMatch!.match_events.filter(e => e.team_id === localMatch!.home_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal"));
+    const awayGoals = localMatch!.match_events.filter(e => e.team_id === localMatch!.away_team_id && (!e.event_type || e.event_type === "goal_scored" || e.event_type === "goal"));
+    const homeScore = sport === "football" ? homeGoals.length : homeGoals.reduce((sum, e) => sum + (e.points_value !== undefined ? e.points_value : 1), 0);
+    const awayScore = sport === "football" ? awayGoals.length : awayGoals.reduce((sum, e) => sum + (e.points_value !== undefined ? e.points_value : 1), 0);
+
+    if (sport === "basketball" && homeScore === awayScore && !forfeitLoserId) {
+      setError("Un meci de baschet nu se poate termina la egalitate. Vă rugăm să introduceți punctele din prelungiri.");
+      return;
+    }
+
+    if (sport !== "basketball" && localMatch!.stage !== "group" && !forfeitLoserId) {
+      if (homeScore === awayScore && !penaltyWinnerId) {
         setError("Te rugăm să selectezi echipa câștigătoare la departajare.");
         return;
       }
@@ -705,6 +711,15 @@ export default function ProgramManager({
                         className="px-3 py-2.5 rounded-xl bg-orange-600 text-white font-bold text-sm hover:bg-orange-700 disabled:opacity-50 transition-colors whitespace-nowrap"
                       >
                         {isPending ? "..." : "+2 Pct"}
+                      </button>
+                      <button
+                        type="submit"
+                        name="points_value"
+                        value="3"
+                        disabled={isPending || allPlayers.length === 0}
+                        className="px-3 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-sm hover:bg-amber-700 disabled:opacity-50 transition-colors whitespace-nowrap"
+                      >
+                        {isPending ? "..." : "+3 Pct"}
                       </button>
                     </>
                   ) : (

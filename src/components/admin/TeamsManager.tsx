@@ -196,7 +196,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
                 <th className="py-3.5 px-4 text-left font-bold text-xs uppercase tracking-wide">Echipă</th>
                 <th className="py-3.5 px-4 text-center font-bold text-xs uppercase tracking-wide">MJ</th>
                 <th className="py-3.5 px-4 text-center font-bold text-xs uppercase tracking-wide">Pct</th>
-                <th className="py-3.5 px-4 text-center font-bold text-xs uppercase tracking-wide hidden sm:table-cell">GM / GP</th>
+                <th className="py-3.5 px-4 text-center font-bold text-xs uppercase tracking-wide hidden sm:table-cell">{sport === "basketball" ? "PM / PP" : "GM / GP"}</th>
                 <th className="py-3.5 px-4 text-center font-bold text-xs uppercase tracking-wide">Jucători</th>
                 <th className="py-3.5 px-4 text-right font-bold text-xs uppercase tracking-wide">Acțiuni</th>
               </tr>
@@ -273,7 +273,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
           <form ref={formRef} onSubmit={handleAddTeam} className="space-y-4">
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Numele echipei *</label>
-              <input name="name" required placeholder="ex: FC Steaua" className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all text-sm" />
+              <input name="name" required placeholder={sport === "basketball" ? "ex: BC Politehnica" : "ex: FC Steaua"} className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all text-sm" />
             </div>
             {error && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{error}</div>}
             <div className="flex gap-3 pt-2">

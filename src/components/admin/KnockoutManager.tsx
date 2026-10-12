@@ -5,22 +5,40 @@ import { saveAllKnockoutMatchesAction } from "@/lib/actions/knockoutActions";
 
 function getWinner(match: any): { id: string; name: string } | null {
   if (!match || match.status !== "finished") return null;
+  if (match.forfeit_loser_id) {
+    if (match.forfeit_loser_id === match.home_team_id) {
+      return match.away_team ? { id: match.away_team_id, name: match.away_team.name } : null;
+    }
+    return match.home_team ? { id: match.home_team_id, name: match.home_team.name } : null;
+  }
   const homeGoals = match.home_score ?? 0;
   const awayGoals = match.away_score ?? 0;
   if (homeGoals > awayGoals || match.penalty_winner_id === match.home_team_id) {
-    return { id: match.home_team_id, name: match.home_team.name };
+    return match.home_team ? { id: match.home_team_id, name: match.home_team.name } : null;
   }
-  return { id: match.away_team_id, name: match.away_team.name };
+  if (awayGoals > homeGoals || match.penalty_winner_id === match.away_team_id) {
+    return match.away_team ? { id: match.away_team_id, name: match.away_team.name } : null;
+  }
+  return null;
 }
 
 function getLoser(match: any): { id: string; name: string } | null {
   if (!match || match.status !== "finished") return null;
+  if (match.forfeit_loser_id) {
+    if (match.forfeit_loser_id === match.home_team_id) {
+      return match.home_team ? { id: match.home_team_id, name: match.home_team.name } : null;
+    }
+    return match.away_team ? { id: match.away_team_id, name: match.away_team.name } : null;
+  }
   const homeGoals = match.home_score ?? 0;
   const awayGoals = match.away_score ?? 0;
   if (homeGoals > awayGoals || match.penalty_winner_id === match.home_team_id) {
-    return { id: match.away_team_id, name: match.away_team.name };
+    return match.away_team ? { id: match.away_team_id, name: match.away_team.name } : null;
   }
-  return { id: match.home_team_id, name: match.home_team.name };
+  if (awayGoals > homeGoals || match.penalty_winner_id === match.away_team_id) {
+    return match.home_team ? { id: match.home_team_id, name: match.home_team.name } : null;
+  }
+  return null;
 }
 
 interface MatchSlot {

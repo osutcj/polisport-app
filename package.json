@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "eslint",
     "seed-db": "node scripts/seed-32-teams.js",
-    "seed:32": "node scripts/seed-32-teams.js"
+    "seed:32": "node scripts/seed-32-teams.js",
+    "seed:basketball": "node scripts/seed-basketball-16.js",
+    "seed:all": "node scripts/seed-32-teams.js && node scripts/seed-basketball-16.js"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

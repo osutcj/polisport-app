@@ -62,7 +62,7 @@ function PublicMatchRow({ match, sport }: { match: any; sport: SportType }) {
               <span className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg font-black text-lg shadow-inner">
                 {homeScore} - {awayScore}
               </span>
-              {m.penalty_winner_id && (
+              {m.penalty_winner_id && sport !== "basketball" && (
                 <span className="text-[10px] uppercase font-bold text-amber-600 mt-1">
                   {m.penalty_winner_id === m.home_team_id ? "Gazda" : "Oaspete"} (Pen)
                 </span>
@@ -237,12 +237,12 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
                           <th className="px-4 py-3 text-center">Loc</th>
                           <th className="px-4 py-3">Echipă</th>
                           <th className="px-4 py-3 text-center">Pct</th>
-                          <th className="px-4 py-3 text-center">GM-GP</th>
+                          <th className="px-4 py-3 text-center">{sport === "basketball" ? "PM-PP" : "GM-GP"}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
                         {groupTeams.map((team, idx) => (
-                          <tr key={team.id} className={idx < 4 ? "bg-green-50/30" : ""}>
+                          <tr key={team.id} className={idx < (sport === "basketball" ? 2 : 4) ? "bg-green-50/30" : ""}>
                             <td className="px-4 py-3 text-center font-bold text-gray-500">{idx + 1}</td>
                             <td className="px-4 py-3 font-bold text-gray-900">{team.name}</td>
                             <td className="px-4 py-3 text-center font-black text-blue-700">{team.points}</td>
@@ -408,6 +408,13 @@ export default async function PublicPage({ searchParams }: { searchParams: Promi
                     </td>
                   </tr>
                 ))}
+                {(!players || players.length === 0) && (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-8 text-center text-gray-400">
+                      {sport === "basketball" ? "Nu s-au înregistrat puncte încă." : "Nu s-a marcat niciun gol încă."}
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

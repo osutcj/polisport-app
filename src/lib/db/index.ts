@@ -18,11 +18,13 @@ export function getDb(): Database.Database {
     const tmpDbPath = path.join("/tmp", "polisport.db");
     const bundledDbPath = path.join(process.cwd(), "data", "polisport.db");
 
-    if (!fs.existsSync(tmpDbPath) && fs.existsSync(bundledDbPath)) {
-      try {
-        fs.copyFileSync(bundledDbPath, tmpDbPath);
-      } catch (err) {
-        console.error("Nu s-a putut copia baza de date bundled în /tmp:", err);
+    if (fs.existsSync(bundledDbPath)) {
+      if (!fs.existsSync(tmpDbPath) || fs.statSync(tmpDbPath).size === 0) {
+        try {
+          fs.copyFileSync(bundledDbPath, tmpDbPath);
+        } catch (err) {
+          console.error("Nu s-a putut copia baza de date bundled în /tmp:", err);
+        }
       }
     }
     dbPath = tmpDbPath;
@@ -41,6 +43,7 @@ export function getDb(): Database.Database {
   } catch {
     db.pragma("journal_mode = DELETE");
   }
+  db.pragma("busy_timeout = 5000");
   db.pragma("foreign_keys = ON");
 
   // Ensure schema is created
@@ -54,7 +57,7 @@ function initSchema(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS teams (
       id TEXT PRIMARY KEY,
-      name TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
       points INTEGER NOT NULL DEFAULT 0,
       played INTEGER NOT NULL DEFAULT 0,
       won INTEGER NOT NULL DEFAULT 0,
@@ -64,7 +67,8 @@ function initSchema(db: Database.Database) {
       goals_conceded INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       group_name TEXT,
-      sport_type TEXT NOT NULL DEFAULT 'football'
+      sport_type TEXT NOT NULL DEFAULT 'football',
+      CONSTRAINT unique_name_per_sport UNIQUE (name, sport_type)
     );
 
     CREATE TABLE IF NOT EXISTS players (
@@ -125,7 +129,8 @@ function initSchema(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    CREATE TRIGGER IF NOT EXISTS trg_update_standings
+    DROP TRIGGER IF EXISTS trg_update_standings;
+    CREATE TRIGGER trg_update_standings
     AFTER UPDATE OF status ON matches
     FOR EACH ROW
     WHEN NEW.status = 'finished' AND OLD.status != 'finished'
@@ -137,9 +142,24 @@ function initSchema(db: Database.Database) {
         goals_scored = goals_scored + NEW.home_score,
         goals_conceded = goals_conceded + NEW.away_score,
         won = won + (CASE WHEN NEW.home_score > NEW.away_score THEN 1 ELSE 0 END),
-        drawn = drawn + (CASE WHEN NEW.home_score = NEW.away_score THEN 1 ELSE 0 END),
+        drawn = drawn + (CASE WHEN NEW.home_score = NEW.away_score AND NEW.sport_type != 'basketball' THEN 1 ELSE 0 END),
         lost = lost + (CASE WHEN NEW.home_score < NEW.away_score THEN 1 ELSE 0 END),
-        points = points + (CASE WHEN NEW.home_score > NEW.away_score THEN 3 WHEN NEW.home_score = NEW.away_score THEN 1 ELSE 0 END)
+        points = points + (
+          CASE 
+            WHEN NEW.sport_type = 'basketball' THEN
+              CASE 
+                WHEN NEW.home_score > NEW.away_score THEN 2
+                WHEN NEW.home_score < NEW.away_score THEN (CASE WHEN NEW.forfeit_loser_id = NEW.home_team_id THEN 0 ELSE 1 END)
+                ELSE 0
+              END
+            ELSE
+              CASE 
+                WHEN NEW.home_score > NEW.away_score THEN 3 
+                WHEN NEW.home_score = NEW.away_score THEN 1 
+                ELSE 0 
+              END
+          END
+        )
       WHERE id = NEW.home_team_id;
 
       UPDATE teams SET
@@ -147,9 +167,24 @@ function initSchema(db: Database.Database) {
         goals_scored = goals_scored + NEW.away_score,
         goals_conceded = goals_conceded + NEW.home_score,
         won = won + (CASE WHEN NEW.away_score > NEW.home_score THEN 1 ELSE 0 END),
-        drawn = drawn + (CASE WHEN NEW.away_score = NEW.home_score THEN 1 ELSE 0 END),
+        drawn = drawn + (CASE WHEN NEW.away_score = NEW.home_score AND NEW.sport_type != 'basketball' THEN 1 ELSE 0 END),
         lost = lost + (CASE WHEN NEW.away_score < NEW.home_score THEN 1 ELSE 0 END),
-        points = points + (CASE WHEN NEW.away_score > NEW.home_score THEN 3 WHEN NEW.away_score = NEW.home_score THEN 1 ELSE 0 END)
+        points = points + (
+          CASE 
+            WHEN NEW.sport_type = 'basketball' THEN
+              CASE 
+                WHEN NEW.away_score > NEW.home_score THEN 2
+                WHEN NEW.away_score < NEW.home_score THEN (CASE WHEN NEW.forfeit_loser_id = NEW.away_team_id THEN 0 ELSE 1 END)
+                ELSE 0
+              END
+            ELSE
+              CASE 
+                WHEN NEW.away_score > NEW.home_score THEN 3 
+                WHEN NEW.away_score = NEW.home_score THEN 1 
+                ELSE 0 
+              END
+          END
+        )
       WHERE id = NEW.away_team_id;
     END;
 
@@ -195,6 +230,79 @@ function initSchema(db: Database.Database) {
     }
   } catch (err) {
     console.error("Eroare la migrare schema players:", err);
+  }
+
+  // Migrări automate pentru teams: UNIQUE(name, sport_type)
+  try {
+    const teamsMaster = (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='teams'").get() as { sql: string } | undefined)?.sql || "";
+    if (teamsMaster.includes("name TEXT NOT NULL UNIQUE")) {
+      db.pragma("foreign_keys = OFF");
+      db.transaction(() => {
+        db.exec(`
+          DROP TRIGGER IF EXISTS trg_update_standings;
+          CREATE TABLE teams_migrated (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            points INTEGER NOT NULL DEFAULT 0,
+            played INTEGER NOT NULL DEFAULT 0,
+            won INTEGER NOT NULL DEFAULT 0,
+            drawn INTEGER NOT NULL DEFAULT 0,
+            lost INTEGER NOT NULL DEFAULT 0,
+            goals_scored INTEGER NOT NULL DEFAULT 0,
+            goals_conceded INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            group_name TEXT,
+            sport_type TEXT NOT NULL DEFAULT 'football',
+            CONSTRAINT unique_name_per_sport UNIQUE (name, sport_type)
+          );
+          INSERT INTO teams_migrated SELECT * FROM teams;
+          DROP TABLE teams;
+          ALTER TABLE teams_migrated RENAME TO teams;
+        `);
+      })();
+      db.pragma("foreign_keys = ON");
+    }
+  } catch (err) {
+    console.error("Eroare la migrare schema teams:", err);
+  }
+
+  // Auto-seed baschet dacă lipsesc echipele (ex: instanță serverless /tmp nouă)
+  try {
+    const basketballTeamCount = (db.prepare("SELECT count(*) as cnt FROM teams WHERE sport_type = 'basketball'").get() as { cnt: number })?.cnt ?? 0;
+    if (basketballTeamCount < 16) {
+      const BASKETBALL_ROSTER_TEMPLATES = [
+        { name: "Andrei Pop", jersey: 4 },
+        { name: "Mihai Radu", jersey: 7 },
+        { name: "Alex Stan", jersey: 9 },
+        { name: "Cristian Dima", jersey: 10 },
+        { name: "Vlad Marin", jersey: 23 },
+        { name: "George Ionescu", jersey: 30 },
+      ];
+      const existingBTeams = db.prepare("SELECT id, name FROM teams WHERE sport_type = 'basketball'").all() as { id: string; name: string }[];
+      for (let i = 1; i <= 16; i++) {
+        const expectedName = `baschet ${i}`;
+        let team = existingBTeams.find(t => t.name.toLowerCase() === expectedName.toLowerCase());
+        if (!team) {
+          const teamId = crypto.randomUUID();
+          db.prepare(`
+            INSERT INTO teams (id, name, points, played, won, drawn, lost, goals_scored, goals_conceded, sport_type)
+            VALUES (?, ?, 0, 0, 0, 0, 0, 0, 0, 'basketball')
+          `).run(teamId, expectedName);
+          team = { id: teamId, name: expectedName };
+        }
+        const pCnt = (db.prepare("SELECT count(*) as c FROM players WHERE team_id = ?").get(team.id) as { c: number })?.c ?? 0;
+        if (pCnt === 0) {
+          for (const p of BASKETBALL_ROSTER_TEMPLATES) {
+            db.prepare(`
+              INSERT INTO players (id, team_id, name, jersey_number, role, goals_scored, goals_conceded)
+              VALUES (?, ?, ?, ?, 'player', 0, 0)
+            `).run(crypto.randomUUID(), team.id, `${p.name} (${team.name})`, p.jersey);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Eroare la auto-seed baschet:", err);
   }
 
   // Ensure default admin user

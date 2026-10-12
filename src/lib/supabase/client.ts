@@ -30,7 +30,7 @@ export function createClient() {
             if (!res.ok || json.error) {
               return { data: null, error: { message: json.error || "Upload failed" } };
             }
-            return { data: { path: filePath }, error: null };
+            return { data: { path: json.filePath || filePath }, error: null };
           } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : String(err);
             return { data: null, error: { message: msg } };
@@ -38,6 +38,9 @@ export function createClient() {
         },
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         createSignedUrl: async (filePath: string, _expiresIn?: number) => {
+          if (filePath.startsWith("data:") || filePath.startsWith("http://") || filePath.startsWith("https://")) {
+            return { data: { signedUrl: filePath }, error: null };
+          }
           return {
             data: { signedUrl: `/uploads/${filePath}` },
             error: null,

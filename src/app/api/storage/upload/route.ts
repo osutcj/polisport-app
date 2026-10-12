@@ -27,6 +27,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Cale invalidă." }, { status: 403 });
     }
 
+    if (isServerless) {
+      const mimeType = file.type || "image/jpeg";
+      const dataUrl = `data:${mimeType};base64,${buffer.toString("base64")}`;
+      // Also try saving to /tmp if possible, but return dataUrl for durability
+      try {
+        const targetDir = path.dirname(fullPath);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+        fs.writeFileSync(fullPath, buffer);
+      } catch {
+        // ignore tmp write errors
+      }
+      return NextResponse.json({ success: true, filePath: dataUrl });
+    }
+
     const targetDir = path.dirname(fullPath);
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });

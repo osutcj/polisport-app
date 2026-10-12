@@ -137,6 +137,11 @@ export async function finalizeMatchAction(matchId: string, penaltyWinnerId?: str
     awayScore = sport === "football" ? awayGoals.length : awayGoals.reduce((sum, e) => sum + (e.points_value !== undefined && e.points_value !== null ? e.points_value : 1), 0);
   }
 
+  // Prevenim finalizarea unui meci de baschet la egalitate
+  if (sport === "basketball" && homeScore === awayScore && !forfeitLoserId) {
+    return { error: "Un meci de baschet nu se poate termina la egalitate. Vă rugăm să introduceți punctele din prelungiri." };
+  }
+
   // 3. Dacă meciul era deja 'finished', revocăm statisticile vechi din teams DOAR dacă e meci de grupă
   if (match.stage === "group" && match.status === "finished" && match.home_score !== null && match.away_score !== null) {
     const revertErr = await revertTeamStats(
@@ -144,7 +149,9 @@ export async function finalizeMatchAction(matchId: string, penaltyWinnerId?: str
       match.home_team_id,
       match.away_team_id,
       match.home_score as number,
-      match.away_score as number
+      match.away_score as number,
+      sport,
+      match.forfeit_loser_id
     );
     if (revertErr) return { error: revertErr };
   }
@@ -173,7 +180,9 @@ export async function finalizeMatchAction(matchId: string, penaltyWinnerId?: str
       match.home_team_id,
       match.away_team_id,
       homeScore,
-      awayScore
+      awayScore,
+      sport,
+      forfeitLoserId
     );
     if (applyErr) return { error: applyErr };
   }
@@ -193,7 +202,7 @@ export async function reopenMatchAction(matchId: string): Promise<ActionResult> 
   // 1. Preluăm meciul actual
   const { data: match, error: matchErr } = await supabase
     .from("matches")
-    .select("id, home_team_id, away_team_id, status, home_score, away_score, stage")
+    .select("id, home_team_id, away_team_id, status, home_score, away_score, stage, sport_type, forfeit_loser_id")
     .eq("id", matchId)
     .single();
 
@@ -212,7 +221,9 @@ export async function reopenMatchAction(matchId: string): Promise<ActionResult> 
       match.home_team_id,
       match.away_team_id,
       match.home_score as number,
-      match.away_score as number
+      match.away_score as number,
+      match.sport_type || "football",
+      match.forfeit_loser_id
     );
     if (revertErr) return { error: revertErr };
   }
@@ -246,19 +257,43 @@ export async function reopenMatchAction(matchId: string): Promise<ActionResult> 
 }
 
 // ─── Helpers pentru statistici echipe ───────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function applyTeamStats(supabase: any, homeId: string, awayId: string, homeScore: number, awayScore: number): Promise<string | null> {
+function computeTeamPoints(sport: string, homeScore: number, awayScore: number, forfeitLoserId?: string | null) {
+  if (sport === "basketball") {
+    let homePts = 0, awayPts = 0;
+    if (homeScore > awayScore) {
+      homePts = 2;
+      awayPts = forfeitLoserId ? 0 : 1;
+    } else if (awayScore > homeScore) {
+      awayPts = 2;
+      homePts = forfeitLoserId ? 0 : 1;
+    }
+    return { homePts, awayPts };
+  }
   let homePts = 0, awayPts = 0;
   if (homeScore > awayScore)      { homePts = 3; awayPts = 0; }
   else if (homeScore < awayScore) { homePts = 0; awayPts = 3; }
-  else                             { homePts = 1; awayPts = 1; }
+  else                            { homePts = 1; awayPts = 1; }
+  return { homePts, awayPts };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function applyTeamStats(
+  supabase: any,
+  homeId: string,
+  awayId: string,
+  homeScore: number,
+  awayScore: number,
+  sport: string = "football",
+  forfeitLoserId?: string | null
+): Promise<string | null> {
+  const { homePts, awayPts } = computeTeamPoints(sport, homeScore, awayScore, forfeitLoserId);
 
   const { data: ht } = await supabase.from("teams").select("points,played,won,drawn,lost,goals_scored,goals_conceded").eq("id", homeId).single();
   if (!ht) return "Echipa gazdă nu a fost găsită.";
   await supabase.from("teams").update({
     points: ht.points + homePts, played: ht.played + 1,
     won:    ht.won    + (homeScore > awayScore ? 1 : 0),
-    drawn:  ht.drawn  + (homeScore === awayScore ? 1 : 0),
+    drawn:  ht.drawn  + (homeScore === awayScore && sport !== "basketball" ? 1 : 0),
     lost:   ht.lost   + (homeScore < awayScore ? 1 : 0),
     goals_scored:   ht.goals_scored   + homeScore,
     goals_conceded: ht.goals_conceded + awayScore,
@@ -269,7 +304,7 @@ async function applyTeamStats(supabase: any, homeId: string, awayId: string, hom
   await supabase.from("teams").update({
     points: at.points + awayPts, played: at.played + 1,
     won:    at.won    + (awayScore > homeScore ? 1 : 0),
-    drawn:  at.drawn  + (awayScore === homeScore ? 1 : 0),
+    drawn:  at.drawn  + (awayScore === homeScore && sport !== "basketball" ? 1 : 0),
     lost:   at.lost   + (awayScore < homeScore ? 1 : 0),
     goals_scored:   at.goals_scored   + awayScore,
     goals_conceded: at.goals_conceded + homeScore,
@@ -279,18 +314,23 @@ async function applyTeamStats(supabase: any, homeId: string, awayId: string, hom
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function revertTeamStats(supabase: any, homeId: string, awayId: string, homeScore: number, awayScore: number): Promise<string | null> {
-  let homePts = 0, awayPts = 0;
-  if (homeScore > awayScore)      { homePts = 3; awayPts = 0; }
-  else if (homeScore < awayScore) { homePts = 0; awayPts = 3; }
-  else                             { homePts = 1; awayPts = 1; }
+export async function revertTeamStats(
+  supabase: any,
+  homeId: string,
+  awayId: string,
+  homeScore: number,
+  awayScore: number,
+  sport: string = "football",
+  forfeitLoserId?: string | null
+): Promise<string | null> {
+  const { homePts, awayPts } = computeTeamPoints(sport, homeScore, awayScore, forfeitLoserId);
 
   const { data: ht } = await supabase.from("teams").select("points,played,won,drawn,lost,goals_scored,goals_conceded").eq("id", homeId).single();
   if (!ht) return "Echipa gazdă nu a fost găsită.";
   await supabase.from("teams").update({
     points: Math.max(0, ht.points - homePts), played: Math.max(0, ht.played - 1),
     won:    Math.max(0, ht.won  - (homeScore > awayScore ? 1 : 0)),
-    drawn:  Math.max(0, ht.drawn - (homeScore === awayScore ? 1 : 0)),
+    drawn:  Math.max(0, ht.drawn - (homeScore === awayScore && sport !== "basketball" ? 1 : 0)),
     lost:   Math.max(0, ht.lost  - (homeScore < awayScore ? 1 : 0)),
     goals_scored:   Math.max(0, ht.goals_scored   - homeScore),
     goals_conceded: Math.max(0, ht.goals_conceded - awayScore),
@@ -301,7 +341,7 @@ export async function revertTeamStats(supabase: any, homeId: string, awayId: str
   await supabase.from("teams").update({
     points: Math.max(0, at.points - awayPts), played: Math.max(0, at.played - 1),
     won:    Math.max(0, at.won  - (awayScore > homeScore ? 1 : 0)),
-    drawn:  Math.max(0, at.drawn - (awayScore === homeScore ? 1 : 0)),
+    drawn:  Math.max(0, at.drawn - (awayScore === homeScore && sport !== "basketball" ? 1 : 0)),
     lost:   Math.max(0, at.lost  - (awayScore < homeScore ? 1 : 0)),
     goals_scored:   Math.max(0, at.goals_scored   - awayScore),
     goals_conceded: Math.max(0, at.goals_conceded - homeScore),
@@ -315,7 +355,7 @@ export async function rescheduleMatchAction(matchId: string): Promise<ActionResu
 
   const { data: match } = await supabase
     .from("matches")
-    .select("id, home_team_id, away_team_id, status, home_score, away_score, stage")
+    .select("id, home_team_id, away_team_id, status, home_score, away_score, stage, sport_type, forfeit_loser_id")
     .eq("id", matchId)
     .single();
 
@@ -325,7 +365,9 @@ export async function rescheduleMatchAction(matchId: string): Promise<ActionResu
       match.home_team_id,
       match.away_team_id,
       match.home_score as number,
-      match.away_score as number
+      match.away_score as number,
+      match.sport_type || "football",
+      match.forfeit_loser_id
     );
     if (revertErr) return { error: revertErr };
   }
