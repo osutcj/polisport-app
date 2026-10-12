@@ -213,22 +213,13 @@ function initSchema(db: Database.Database) {
         goals_scored = goals_scored + NEW.home_score,
         goals_conceded = goals_conceded + NEW.away_score,
         won = won + (CASE WHEN NEW.home_score > NEW.away_score THEN 1 ELSE 0 END),
-        drawn = drawn + (CASE WHEN NEW.home_score = NEW.away_score AND NEW.sport_type != 'basketball' THEN 1 ELSE 0 END),
+        drawn = drawn + (CASE WHEN NEW.home_score = NEW.away_score THEN 1 ELSE 0 END),
         lost = lost + (CASE WHEN NEW.home_score < NEW.away_score THEN 1 ELSE 0 END),
         points = points + (
           CASE 
-            WHEN NEW.sport_type = 'basketball' THEN
-              CASE 
-                WHEN NEW.home_score > NEW.away_score THEN 2
-                WHEN NEW.home_score < NEW.away_score THEN (CASE WHEN NEW.forfeit_loser_id = NEW.home_team_id THEN 0 ELSE 1 END)
-                ELSE 0
-              END
-            ELSE
-              CASE 
-                WHEN NEW.home_score > NEW.away_score THEN 3 
-                WHEN NEW.home_score = NEW.away_score THEN 1 
-                ELSE 0 
-              END
+            WHEN NEW.home_score > NEW.away_score THEN 3 
+            WHEN NEW.home_score = NEW.away_score THEN 1 
+            ELSE 0 
           END
         )
       WHERE id = NEW.home_team_id;
@@ -238,22 +229,13 @@ function initSchema(db: Database.Database) {
         goals_scored = goals_scored + NEW.away_score,
         goals_conceded = goals_conceded + NEW.home_score,
         won = won + (CASE WHEN NEW.away_score > NEW.home_score THEN 1 ELSE 0 END),
-        drawn = drawn + (CASE WHEN NEW.away_score = NEW.home_score AND NEW.sport_type != 'basketball' THEN 1 ELSE 0 END),
+        drawn = drawn + (CASE WHEN NEW.away_score = NEW.home_score THEN 1 ELSE 0 END),
         lost = lost + (CASE WHEN NEW.away_score < NEW.home_score THEN 1 ELSE 0 END),
         points = points + (
           CASE 
-            WHEN NEW.sport_type = 'basketball' THEN
-              CASE 
-                WHEN NEW.away_score > NEW.home_score THEN 2
-                WHEN NEW.away_score < NEW.home_score THEN (CASE WHEN NEW.forfeit_loser_id = NEW.away_team_id THEN 0 ELSE 1 END)
-                ELSE 0
-              END
-            ELSE
-              CASE 
-                WHEN NEW.away_score > NEW.home_score THEN 3 
-                WHEN NEW.away_score = NEW.home_score THEN 1 
-                ELSE 0 
-              END
+            WHEN NEW.away_score > NEW.home_score THEN 3 
+            WHEN NEW.away_score = NEW.home_score THEN 1 
+            ELSE 0 
           END
         )
       WHERE id = NEW.away_team_id;

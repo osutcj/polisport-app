@@ -137,9 +137,9 @@ export async function finalizeMatchAction(matchId: string, penaltyWinnerId?: str
     awayScore = sport === "football" ? awayGoals.length : awayGoals.reduce((sum, e) => sum + (e.points_value !== undefined && e.points_value !== null ? e.points_value : 1), 0);
   }
 
-  // Prevenim finalizarea unui meci de baschet la egalitate
-  if (sport === "basketball" && homeScore === awayScore && !forfeitLoserId) {
-    return { error: "Un meci de baschet nu se poate termina la egalitate. Vă rugăm să introduceți punctele din prelungiri." };
+  // Pentru meciurile eliminatorii terminate la egalitate, se cere selectarea echipei care avansează
+  if (match.stage !== "group" && homeScore === awayScore && !penaltyWinnerId && !forfeitLoserId) {
+    return { error: "Meciul s-a încheiat la egalitate. Vă rugăm să selectați echipa care avansează în runda următoare." };
   }
 
   // 3. Dacă meciul era deja 'finished', revocăm statisticile vechi din teams DOAR dacă e meci de grupă
@@ -257,18 +257,7 @@ export async function reopenMatchAction(matchId: string): Promise<ActionResult> 
 }
 
 // ─── Helpers pentru statistici echipe ───────────────────────────────────────
-function computeTeamPoints(sport: string, homeScore: number, awayScore: number, forfeitLoserId?: string | null) {
-  if (sport === "basketball") {
-    let homePts = 0, awayPts = 0;
-    if (homeScore > awayScore) {
-      homePts = 2;
-      awayPts = forfeitLoserId ? 0 : 1;
-    } else if (awayScore > homeScore) {
-      awayPts = 2;
-      homePts = forfeitLoserId ? 0 : 1;
-    }
-    return { homePts, awayPts };
-  }
+function computeTeamPoints(_sport: string, homeScore: number, awayScore: number) {
   let homePts = 0, awayPts = 0;
   if (homeScore > awayScore)      { homePts = 3; awayPts = 0; }
   else if (homeScore < awayScore) { homePts = 0; awayPts = 3; }
@@ -284,16 +273,16 @@ async function applyTeamStats(
   homeScore: number,
   awayScore: number,
   sport: string = "football",
-  forfeitLoserId?: string | null
+  _forfeitLoserId?: string | null
 ): Promise<string | null> {
-  const { homePts, awayPts } = computeTeamPoints(sport, homeScore, awayScore, forfeitLoserId);
+  const { homePts, awayPts } = computeTeamPoints(sport, homeScore, awayScore);
 
   const { data: ht } = await supabase.from("teams").select("points,played,won,drawn,lost,goals_scored,goals_conceded").eq("id", homeId).single();
   if (!ht) return "Echipa gazdă nu a fost găsită.";
   await supabase.from("teams").update({
     points: ht.points + homePts, played: ht.played + 1,
     won:    ht.won    + (homeScore > awayScore ? 1 : 0),
-    drawn:  ht.drawn  + (homeScore === awayScore && sport !== "basketball" ? 1 : 0),
+    drawn:  ht.drawn  + (homeScore === awayScore ? 1 : 0),
     lost:   ht.lost   + (homeScore < awayScore ? 1 : 0),
     goals_scored:   ht.goals_scored   + homeScore,
     goals_conceded: ht.goals_conceded + awayScore,
@@ -304,7 +293,7 @@ async function applyTeamStats(
   await supabase.from("teams").update({
     points: at.points + awayPts, played: at.played + 1,
     won:    at.won    + (awayScore > homeScore ? 1 : 0),
-    drawn:  at.drawn  + (awayScore === homeScore && sport !== "basketball" ? 1 : 0),
+    drawn:  at.drawn  + (awayScore === homeScore ? 1 : 0),
     lost:   at.lost   + (awayScore < homeScore ? 1 : 0),
     goals_scored:   at.goals_scored   + awayScore,
     goals_conceded: at.goals_conceded + homeScore,
@@ -321,16 +310,16 @@ export async function revertTeamStats(
   homeScore: number,
   awayScore: number,
   sport: string = "football",
-  forfeitLoserId?: string | null
+  _forfeitLoserId?: string | null
 ): Promise<string | null> {
-  const { homePts, awayPts } = computeTeamPoints(sport, homeScore, awayScore, forfeitLoserId);
+  const { homePts, awayPts } = computeTeamPoints(sport, homeScore, awayScore);
 
   const { data: ht } = await supabase.from("teams").select("points,played,won,drawn,lost,goals_scored,goals_conceded").eq("id", homeId).single();
   if (!ht) return "Echipa gazdă nu a fost găsită.";
   await supabase.from("teams").update({
     points: Math.max(0, ht.points - homePts), played: Math.max(0, ht.played - 1),
     won:    Math.max(0, ht.won  - (homeScore > awayScore ? 1 : 0)),
-    drawn:  Math.max(0, ht.drawn - (homeScore === awayScore && sport !== "basketball" ? 1 : 0)),
+    drawn:  Math.max(0, ht.drawn - (homeScore === awayScore ? 1 : 0)),
     lost:   Math.max(0, ht.lost  - (homeScore < awayScore ? 1 : 0)),
     goals_scored:   Math.max(0, ht.goals_scored   - homeScore),
     goals_conceded: Math.max(0, ht.goals_conceded - awayScore),
@@ -341,7 +330,7 @@ export async function revertTeamStats(
   await supabase.from("teams").update({
     points: Math.max(0, at.points - awayPts), played: Math.max(0, at.played - 1),
     won:    Math.max(0, at.won  - (awayScore > homeScore ? 1 : 0)),
-    drawn:  Math.max(0, at.drawn - (awayScore === homeScore && sport !== "basketball" ? 1 : 0)),
+    drawn:  Math.max(0, at.drawn - (awayScore === homeScore ? 1 : 0)),
     lost:   Math.max(0, at.lost  - (awayScore < homeScore ? 1 : 0)),
     goals_scored:   Math.max(0, at.goals_scored   - awayScore),
     goals_conceded: Math.max(0, at.goals_conceded - homeScore),

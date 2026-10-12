@@ -333,14 +333,9 @@ export default function ProgramManager({
     const homeScore = sport === "football" ? homeGoals.length : homeGoals.reduce((sum, e) => sum + (e.points_value !== undefined ? e.points_value : 1), 0);
     const awayScore = sport === "football" ? awayGoals.length : awayGoals.reduce((sum, e) => sum + (e.points_value !== undefined ? e.points_value : 1), 0);
 
-    if (sport === "basketball" && homeScore === awayScore && !forfeitLoserId) {
-      setError("Un meci de baschet nu se poate termina la egalitate. Vă rugăm să introduceți punctele din prelungiri.");
-      return;
-    }
-
-    if (sport !== "basketball" && localMatch!.stage !== "group" && !forfeitLoserId) {
+    if (localMatch!.stage !== "group" && !forfeitLoserId) {
       if (homeScore === awayScore && !penaltyWinnerId) {
-        setError("Te rugăm să selectezi echipa câștigătoare la departajare.");
+        setError(sport === "basketball" ? "Te rugăm să selectezi echipa care avansează după prelungiri/departajare." : "Te rugăm să selectezi echipa câștigătoare la departajare.");
         return;
       }
     }
@@ -814,10 +809,12 @@ export default function ProgramManager({
               </div>
             </div>
 
-            {/* Selectare penalty-uri dacă scor egal și meci eliminatoriu */}
-            {sport !== "basketball" && localMatch.stage !== "group" && homeScore === awayScore && (
+            {/* Selectare departajare dacă scor egal și meci eliminatoriu */}
+            {localMatch.stage !== "group" && homeScore === awayScore && (
               <div className="mb-5 p-4 rounded-xl border border-amber-200 bg-amber-50">
-                <p className="text-sm font-bold text-amber-900 mb-3">Departajare la penalty-uri — Selectează echipa care avansează</p>
+                <p className="text-sm font-bold text-amber-900 mb-3">
+                  {sport === "basketball" ? "Departajare / Prelungiri — Selectează echipa care avansează" : "Departajare la penalty-uri — Selectează echipa care avansează"}
+                </p>
                 <div className="flex flex-col sm:flex-row gap-3">
                   <label className={`flex-1 flex items-center justify-between p-3 rounded-xl cursor-pointer border-2 transition-all ${
                     penaltyWinnerId === localMatch.home_team_id 
