@@ -8,7 +8,7 @@ import { QueryBuilder } from "@/lib/db/query-builder";
 export function createPublicClient() {
   const db = getDb();
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     from: (table: string) => new QueryBuilder<any>(db, table),
   };
 }

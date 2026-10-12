@@ -20,15 +20,15 @@ export async function signInWithPassword({
 }): Promise<{ data: { user: AuthUser | null }; error: { message: string; status?: number } | null }> {
   try {
     const db = getDb();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userRow = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as any;
+     
+    const userRow = (await (db as any).prepare("SELECT * FROM users WHERE email = ?").get(email)) as any;
 
     if (!userRow) {
       // Check if admin email
       const defaultAdmin = process.env.ADMIN_EMAIL || "andrei.armean17@gmail.com";
       if (email.toLowerCase() === defaultAdmin.toLowerCase()) {
         const id = crypto.randomUUID();
-        db.prepare("INSERT OR REPLACE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'admin')").run(
+        await (db as any).prepare("INSERT OR REPLACE INTO users (id, email, password_hash, role) VALUES (?, ?, ?, 'admin')").run(
           id,
           email,
           password || "admin123"

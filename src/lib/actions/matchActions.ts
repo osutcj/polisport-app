@@ -276,7 +276,7 @@ function computeTeamPoints(sport: string, homeScore: number, awayScore: number, 
   return { homePts, awayPts };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 async function applyTeamStats(
   supabase: any,
   homeId: string,
@@ -313,7 +313,7 @@ async function applyTeamStats(
   return null;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 export async function revertTeamStats(
   supabase: any,
   homeId: string,

@@ -9,7 +9,7 @@ import * as localAuth from "@/lib/db/auth";
 export async function createClient() {
   const db = getDb();
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+     
     from: (table: string) => new QueryBuilder<any>(db, table),
     auth: localAuth,
   };

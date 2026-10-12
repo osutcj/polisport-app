@@ -59,7 +59,7 @@ function MatchCard({
   onHome: (v: string) => void;
   onAway: (v: string) => void;
   options: { id: string; name: string }[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   existingMatch?: any;
 }) {
   if (existingMatch) {

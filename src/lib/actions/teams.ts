@@ -17,11 +17,23 @@ export async function createTeamAction(formData: FormData): Promise<ActionResult
   const name = (formData.get("name") as string)?.trim();
   if (!name) return { error: "Numele echipei este obligatoriu." };
 
-  const sport = await getCurrentSport();
+  const sportParam = (formData.get("sport_type") as string)?.trim();
+  const currentSport = await getCurrentSport();
+  const sport = (sportParam === "basketball" || sportParam === "football") ? sportParam : currentSport;
 
   const { error } = await supabaseAdmin
     .from("teams")
-    .insert({ name, sport_type: sport });
+    .insert({
+      name,
+      sport_type: sport,
+      points: 0,
+      played: 0,
+      won: 0,
+      drawn: 0,
+      lost: 0,
+      goals_scored: 0,
+      goals_conceded: 0,
+    });
 
   if (error) {
     if (error.code === "23505") return { error: "O echipă cu acest nume există deja." };
@@ -30,7 +42,13 @@ export async function createTeamAction(formData: FormData): Promise<ActionResult
 
   revalidatePath("/admin/echipe");
   revalidatePath("/admin/clasament");
+  revalidatePath("/admin/meciuri");
+  revalidatePath("/admin/faza-eliminatorie");
+  revalidatePath("/clasament");
+  revalidatePath("/echipe");
+  revalidatePath("/meciuri");
   revalidatePath("/public");
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -56,7 +74,13 @@ export async function updateTeamAction(formData: FormData): Promise<ActionResult
 
   revalidatePath("/admin/echipe");
   revalidatePath("/admin/clasament");
+  revalidatePath("/admin/meciuri");
+  revalidatePath("/admin/faza-eliminatorie");
+  revalidatePath("/clasament");
+  revalidatePath("/echipe");
+  revalidatePath("/meciuri");
   revalidatePath("/public");
+  revalidatePath("/");
   return { success: true };
 }
 
@@ -73,6 +97,12 @@ export async function deleteTeamAction(id: string): Promise<ActionResult> {
 
   revalidatePath("/admin/echipe");
   revalidatePath("/admin/clasament");
+  revalidatePath("/admin/meciuri");
+  revalidatePath("/admin/faza-eliminatorie");
+  revalidatePath("/clasament");
+  revalidatePath("/echipe");
+  revalidatePath("/meciuri");
   revalidatePath("/public");
+  revalidatePath("/");
   return { success: true };
 }

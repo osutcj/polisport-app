@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   createTeamAction,
@@ -73,6 +74,7 @@ function Modal({
 
 /* ── COMPONENTA PRINCIPALĂ ── */
 export default function TeamsManager({ teams, players, sport }: TeamsManagerProps) {
+  const router = useRouter();
   const [modal, setModal] = useState<"addTeam" | "editTeam" | "deleteTeam" | "players" | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,10 +95,12 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
   function handleAddTeam(e: React.FormEvent) {
     e.preventDefault();
     const fd = new FormData(formRef.current!);
+    fd.set("sport_type", sport);
     startTransition(async () => {
       const result = await createTeamAction(fd);
       if ("error" in result) { setError(result.error); return; }
       close();
+      router.refresh();
     });
   }
 
@@ -108,6 +112,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
       const result = await updateTeamAction(fd);
       if ("error" in result) { setError(result.error); return; }
       close();
+      router.refresh();
     });
   }
 
@@ -116,6 +121,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
       const result = await deleteTeamAction(selectedTeam!.id);
       if ("error" in result) { setError(result.error); return; }
       close();
+      router.refresh();
     });
   }
 
@@ -128,6 +134,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
       const result = await createPlayerAction(fd);
       if ("error" in result) { setPlayerError(result.error); return; }
       closePlayerModal();
+      router.refresh();
     });
   }
 
@@ -140,6 +147,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
       const result = await updatePlayerAction(fd);
       if ("error" in result) { setPlayerError(result.error); return; }
       closePlayerModal();
+      router.refresh();
     });
   }
 
@@ -148,6 +156,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
       const result = await deletePlayerAction(selectedPlayer!.id);
       if ("error" in result) { setPlayerError(result.error); return; }
       closePlayerModal();
+      router.refresh();
     });
   }
 
@@ -271,6 +280,7 @@ export default function TeamsManager({ teams, players, sport }: TeamsManagerProp
       {modal === "addTeam" && (
         <Modal title="Adaugă Echipă Nouă" onClose={close}>
           <form ref={formRef} onSubmit={handleAddTeam} className="space-y-4">
+            <input type="hidden" name="sport_type" value={sport} />
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-1.5">Numele echipei *</label>
               <input name="name" required placeholder={sport === "basketball" ? "ex: BC Politehnica" : "ex: FC Steaua"} className="w-full px-3.5 py-2.5 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-green-500 focus:ring-4 focus:ring-green-500/10 transition-all text-sm" />

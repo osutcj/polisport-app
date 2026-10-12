@@ -1,12 +1,71 @@
 import Database from "better-sqlite3";
+import { createClient as createLibsqlClient, type Client as LibsqlClient } from "@libsql/client";
 import path from "path";
 import fs from "fs";
 import crypto from "crypto";
 
-let dbInstance: Database.Database | null = null;
+export interface AnyDb {
+   
+  prepare(sql: string): {
+     
+    run(...params: any[]): Promise<{ changes: number; lastInsertRowid?: any }> | { changes: number; lastInsertRowid?: any };
+     
+    get(...params: any[]): Promise<any> | any;
+     
+    all(...params: any[]): Promise<any[]> | any[];
+  };
+  exec(sql: string): Promise<void> | void;
+  pragma?(sql: string): void;
+}
 
-export function getDb(): Database.Database {
+ 
+let dbInstance: any = null;
+
+ 
+export function getDb(): any {
   if (dbInstance) return dbInstance;
+
+  // Turso / LibSQL cloud support (pentru serverless / Vercel multi-instanță persistentă)
+  const tursoUrl =
+    process.env.TURSO_DATABASE_URL ||
+    (process.env.DATABASE_URL?.startsWith("libsql://") || process.env.DATABASE_URL?.startsWith("https://")
+      ? process.env.DATABASE_URL
+      : null);
+
+  if (tursoUrl) {
+    const client: LibsqlClient = createLibsqlClient({
+      url: tursoUrl,
+      authToken: process.env.TURSO_AUTH_TOKEN,
+    });
+
+    const libsqlDb: AnyDb = {
+      prepare(sql: string) {
+        return {
+          async run(...params: any[]) {
+            const res = await client.execute({ sql, args: params });
+            return { changes: res.rowsAffected, lastInsertRowid: res.lastInsertRowid };
+          },
+          async get(...params: any[]) {
+            const res = await client.execute({ sql, args: params });
+            return res.rows[0] ? { ...res.rows[0] } : undefined;
+          },
+          async all(...params: any[]) {
+            const res = await client.execute({ sql, args: params });
+            return res.rows.map((r) => ({ ...r }));
+          },
+        };
+      },
+      async exec(sql: string) {
+        await client.executeMultiple(sql);
+      },
+      pragma() {
+        // Libsql cloud handles pragmas internally
+      },
+    };
+
+    dbInstance = libsqlDb;
+    return dbInstance;
+  }
 
   const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
   let dbPath: string;
@@ -22,10 +81,22 @@ export function getDb(): Database.Database {
       if (!fs.existsSync(tmpDbPath) || fs.statSync(tmpDbPath).size === 0) {
         try {
           fs.copyFileSync(bundledDbPath, tmpDbPath);
+          try {
+            fs.chmodSync(tmpDbPath, 0o666);
+          } catch {
+            // ignore
+          }
         } catch (err) {
           console.error("Nu s-a putut copia baza de date bundled în /tmp:", err);
         }
       }
+    }
+    try {
+      if (fs.existsSync(tmpDbPath)) {
+        fs.chmodSync(tmpDbPath, 0o666);
+      }
+    } catch {
+      // ignore
     }
     dbPath = tmpDbPath;
   } else {
